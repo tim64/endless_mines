@@ -286,13 +286,35 @@ function gameLoop(now: number) {
   }
 
   // 8. Update Lava Simulation & Flows
-  world.updateLava(dt, player.tileX, player.tileY, (wx, wy) => {
-    audio.playLavaSizzle();
-    const lpx = (wx + 0.5) * TILE_SIZE;
-    const lpy = (wy + 0.5) * TILE_SIZE;
-    renderer.addParticle(lpx, lpy, '#ff6600', 8, 45);
-    renderer.addParticle(lpx, lpy, '#555555', 4, 25);
-  });
+  world.updateLava(
+    dt,
+    player.tileX,
+    player.tileY,
+    // onFlow (when lava actually breaks through and fills tile)
+    (wx, wy) => {
+      audio.playLavaSizzle();
+      const lpx = (wx + 0.5) * TILE_SIZE;
+      const lpy = (wy + 0.5) * TILE_SIZE;
+      renderer.addParticle(lpx, lpy, '#ff6600', 8, 45);
+      renderer.addParticle(lpx, lpy, '#555555', 4, 25);
+    },
+    // onTelegraph (initial warning when wall is breached)
+    (wx, wy) => {
+      audio.playLavaSizzle();
+      const lpx = (wx + 0.5) * TILE_SIZE;
+      const lpy = (wy + 0.5) * TILE_SIZE;
+      renderer.addParticle(lpx, lpy, '#ffcc00', 6, 35);
+      renderer.addParticle(lpx, lpy, '#888888', 4, 20);
+    },
+    // onSimmer (hissing embers and steam during the 0.65s reaction countdown)
+    (wx, wy) => {
+      if (Math.random() < 0.2) {
+        const lpx = (wx + 0.5) * TILE_SIZE;
+        const lpy = (wy + 0.5) * TILE_SIZE;
+        renderer.addParticle(lpx + (Math.random() - 0.5) * 8, lpy + (Math.random() - 0.5) * 8, '#ff9900', 1, 25);
+      }
+    }
+  );
 
   // 9. Player Lava Hazard Check
   const currentTile = world.getTile(player.tileX, player.tileY);

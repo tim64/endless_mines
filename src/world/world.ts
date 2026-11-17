@@ -3,6 +3,14 @@ import { TileType, TileDef, TileDrop } from '../types';
 import { Chunk } from './chunk';
 import { SimplexNoise } from '../utils/noise';
 
+export interface PendingLava {
+  x: number;
+  y: number;
+  level: number;
+  timer: number;
+  maxTimer: number;
+}
+
 export class World {
   private chunks: Map<string, Chunk> = new Map();
   private noiseCave: SimplexNoise;
@@ -10,6 +18,7 @@ export class World {
   private noiseTerrain: SimplexNoise;
   private noiseLava: SimplexNoise;
   private lavaTimer: number = 0;
+  private pendingLava: Map<string, PendingLava> = new Map();
   public seed: number;
 
   constructor(seed: number = 4242) {
@@ -191,25 +200,45 @@ export class World {
     this.getChunk(cx, cy).setLavaLevel(lx, ly, level);
   }
 
+  public getPendingLava(): PendingLava[] {
+    return Array.from(this.pendingLava.values());
+  }
+
   /**
-   * Viscous lava spread simulation.
-   * If a lava pocket is breached by mining (adjacent to AIR), it oozes outward.
+   * Viscous lava spread simulation with a telegraphed warning delay (~0.65s).
+   * Gives the player time to react and step back before molten lava actually spills into the tile!
    */
   public updateLava(
     dt: number,
     centerTileX: number,
     centerTileY: number,
-    onFlow?: (wx: number, wy: number) => void
+    onFlow?: (wx: number, wy: number) => void,
+    onTelegraph?: (wx: number, wy: number) => void,
+    onSimmer?: (wx: number, wy: number) => void
   ) {
+    // 1. Process pending countdowns every frame
+    for (const [key, p] of this.pendingLava) {
+      p.timer -= dt;
+      if (onSimmer) onSimmer(p.x, p.y);
+
+      if (p.timer <= 0) {
+        this.pendingLava.delete(key);
+        // Turn into lava only if still empty (not walled off)
+        if (this.getTile(p.x, p.y) === TileType.AIR) {
+          this.setTile(p.x, p.y, TileType.LAVA);
+          this.setLavaLevel(p.x, p.y, p.level);
+          if (onFlow) onFlow(p.x, p.y);
+        }
+      }
+    }
+
+    // 2. Scan active chunks periodically for new breaches
     this.lavaTimer += dt;
-    // Tick lava flow every 0.45s (molten, viscous liquid)
-    if (this.lavaTimer < 0.45) return;
+    if (this.lavaTimer < 0.2) return;
     this.lavaTimer = 0;
 
     const centerCx = Math.floor(centerTileX / CHUNK_SIZE);
     const centerCy = Math.floor(centerTileY / CHUNK_SIZE);
-
-    const pendingFlows: { x: number; y: number; level: number }[] = [];
 
     // Check active chunks around the player
     for (let ccy = centerCy - 2; ccy <= centerCy + 2; ccy++) {
@@ -232,8 +261,17 @@ export class World {
                 ];
 
                 for (const n of neighbors) {
-                  if (this.getTile(n.x, n.y) === TileType.AIR) {
-                    pendingFlows.push({ x: n.x, y: n.y, level: level - 1 });
+                  const nKey = `${n.x},${n.y}`;
+                  if (this.getTile(n.x, n.y) === TileType.AIR && !this.pendingLava.has(nKey)) {
+                    // ~0.65s warning delay so player can react and step back!
+                    this.pendingLava.set(nKey, {
+                      x: n.x,
+                      y: n.y,
+                      level: level - 1,
+                      timer: 0.65,
+                      maxTimer: 0.65,
+                    });
+                    if (onTelegraph) onTelegraph(n.x, n.y);
                   }
                 }
               }
@@ -242,21 +280,22 @@ export class World {
         }
       }
     }
-
-    // Apply queued flows
-    for (const f of pendingFlows) {
-      if (this.getTile(f.x, f.y) === TileType.AIR) {
-        this.setTile(f.x, f.y, TileType.LAVA);
-        this.setLavaLevel(f.x, f.y, f.level);
-        if (onFlow) onFlow(f.x, f.y);
-      }
-    }
   }
 
   // Bomb explosion
   public explode(centerTileX: number, centerTileY: number, radius: number): { brokenTiles: { x: number; y: number; tile: TileType }[]; drops: TileDrop[] } {
     const brokenTiles: { x: number; y: number; tile: TileType }[] = [];
     const allDrops: TileDrop[] = [];
+
+    // Clear and solidify any pending lava breaches in blast radius
+    for (const [key, p] of this.pendingLava) {
+      const dx = p.x - centerTileX;
+      const dy = p.y - centerTileY;
+      if (Math.hypot(dx, dy) <= radius) {
+        this.pendingLava.delete(key);
+        this.setTile(p.x, p.y, TileType.HARD_STONE);
+      }
+    }
 
     const minX = Math.floor(centerTileX - radius);
     const maxX = Math.ceil(centerTileX + radius);

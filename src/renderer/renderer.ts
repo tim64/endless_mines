@@ -234,6 +234,33 @@ export class Renderer {
       }
     }
 
+    // 1.5 Render Pending Lava Warnings (Telegraphed glowing cracks before eruption!)
+    const pendingLava = world.getPendingLava();
+    for (const pl of pendingLava) {
+      const px = pl.x * TILE_SIZE;
+      const py = pl.y * TILE_SIZE;
+      const progress = 1.0 - pl.timer / pl.maxTimer;
+
+      ctx.save();
+      // Flashing hot orange warning fill
+      const pulse = Math.sin(performance.now() * 0.02) * 0.15;
+      ctx.fillStyle = `rgba(255, 60, 0, ${0.25 + progress * 0.4 + pulse})`;
+      ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+      // Fiery fissures cracking through the rock/floor
+      ctx.strokeStyle = `rgba(255, 210, 0, ${0.6 + progress * 0.4})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px + 2, py + 8);
+      ctx.lineTo(px + 7, py + 6);
+      ctx.lineTo(px + 14, py + 10);
+      ctx.moveTo(px + 7, py + 6);
+      ctx.lineTo(px + 9, py + 2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     // 2. Render Hover/Target Selector
     if (hoveredTile) {
       const hx = hoveredTile.tx * TILE_SIZE;
@@ -396,6 +423,19 @@ export class Renderer {
           lCtx.fill();
         }
       }
+    }
+
+    // Pending Lava Warning Glow
+    for (const pl of world.getPendingLava()) {
+      const ls = camera.worldToScreen((pl.x + 0.5) * TILE_SIZE, (pl.y + 0.5) * TILE_SIZE);
+      const lRad = 20 * camera.zoom;
+      const lGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 1, ls.sx, ls.sy, lRad);
+      lGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+      lGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      lCtx.fillStyle = lGrad;
+      lCtx.beginPath();
+      lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
+      lCtx.fill();
     }
 
     // Bomb Sparks / Light

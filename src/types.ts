@@ -39,6 +39,13 @@ export interface Inventory {
   sulfur: number;
   gems: number;
   obsidian: number;
+  torches: number;
+}
+
+export interface Torch {
+  tileX: number;
+  tileY: number;
+  flickerOffset: number;
 }
 
 export interface PickaxeInfo {

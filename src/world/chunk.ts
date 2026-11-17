@@ -8,6 +8,7 @@ export class Chunk {
   public damage: Float32Array;
   public lavaLevels: Uint8Array;
   public waterLevels: Uint8Array;
+  public torches: { lx: number; ly: number; flickerOffset: number }[] = [];
   public isModified: boolean = false;
 
   constructor(cx: number, cy: number) {
@@ -35,6 +36,9 @@ export class Chunk {
     const idx = this.getIndex(lx, ly);
     this.tiles[idx] = type;
     this.damage[idx] = 0;
+    if (type !== TileType.AIR) {
+      this.removeTorch(lx, ly);
+    }
     if (type !== TileType.LAVA) {
       this.lavaLevels[idx] = 0;
     }
@@ -42,6 +46,27 @@ export class Chunk {
       this.waterLevels[idx] = 0;
     }
     this.isModified = true;
+  }
+
+  public addTorch(lx: number, ly: number, flickerOffset: number = Math.random() * 100) {
+    if (!this.hasTorch(lx, ly)) {
+      this.torches.push({ lx, ly, flickerOffset });
+      this.isModified = true;
+    }
+  }
+
+  public removeTorch(lx: number, ly: number): boolean {
+    const idx = this.torches.findIndex(t => t.lx === lx && t.ly === ly);
+    if (idx !== -1) {
+      this.torches.splice(idx, 1);
+      this.isModified = true;
+      return true;
+    }
+    return false;
+  }
+
+  public hasTorch(lx: number, ly: number): boolean {
+    return this.torches.some(t => t.lx === lx && t.ly === ly);
   }
 
   public getLavaLevel(lx: number, ly: number): number {

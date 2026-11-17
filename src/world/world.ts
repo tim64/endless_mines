@@ -1,5 +1,5 @@
 import { CHUNK_SIZE, TILE_DEFINITIONS, TILE_SIZE } from '../constants';
-import { TileType, TileDef, TileDrop } from '../types';
+import { TileType, TileDef, TileDrop, Torch } from '../types';
 import { Chunk } from './chunk';
 import { SimplexNoise } from '../utils/noise';
 
@@ -69,6 +69,10 @@ export class World {
         // Safe starting cavern at (0, 0)
         if (dist <= 3.5) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
+          // Spawn one welcoming torch at spawn point (1, 1)
+          if (wx === 1 && wy === 1) {
+            chunk.addTorch(lx, ly, 0);
+          }
           continue;
         }
 
@@ -79,6 +83,13 @@ export class World {
         // Natural winding caves and caverns
         if (caveVal > 0.48 || caveWorm < 0.07) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
+          // Natural dungeon torches in abandoned cave pockets
+          if (dist > 5) {
+            const torchHash = Math.abs(Math.sin(wx * 17.13 + wy * 31.97) * 43758.5453);
+            if ((torchHash - Math.floor(torchHash)) < 0.015) {
+              chunk.addTorch(lx, ly, Math.random() * 100);
+            }
+          }
           continue;
         }
 
@@ -453,6 +464,9 @@ export class World {
         const d = Math.sqrt(dx * dx + dy * dy);
 
         if (d <= radius) {
+          // Blast shatters torches
+          this.removeTorch(x, y);
+
           const tile = this.getTile(x, y);
           if (tile === TileType.AIR || tile === TileType.BEDROCK) continue;
 
@@ -485,5 +499,61 @@ export class World {
     }
 
     return { brokenTiles, drops: allDrops };
+  }
+
+  public addTorch(wx: number, wy: number): boolean {
+    if (this.getTile(wx, wy) !== TileType.AIR) return false;
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const chunk = this.getChunk(cx, cy);
+    if (chunk.hasTorch(lx, ly)) return false;
+    chunk.addTorch(lx, ly);
+    return true;
+  }
+
+  public removeTorch(wx: number, wy: number): boolean {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return this.getChunk(cx, cy).removeTorch(lx, ly);
+  }
+
+  public hasTorch(wx: number, wy: number): boolean {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return this.getChunk(cx, cy).hasTorch(lx, ly);
+  }
+
+  public getVisibleTorches(minTx: number, maxTx: number, minTy: number, maxTy: number): Torch[] {
+    const minCx = Math.floor(minTx / CHUNK_SIZE);
+    const maxCx = Math.floor(maxTx / CHUNK_SIZE);
+    const minCy = Math.floor(minTy / CHUNK_SIZE);
+    const maxCy = Math.floor(maxTy / CHUNK_SIZE);
+
+    const result: Torch[] = [];
+
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      for (let ccx = minCx; ccx <= maxCx; ccx++) {
+        const chunk = this.getChunk(ccx, cy);
+        for (const t of chunk.torches) {
+          const wx = ccx * CHUNK_SIZE + t.lx;
+          const wy = cy * CHUNK_SIZE + t.ly;
+          if (wx >= minTx && wx <= maxTx && wy >= minTy && wy <= maxTy) {
+            result.push({
+              tileX: wx,
+              tileY: wy,
+              flickerOffset: t.flickerOffset,
+            });
+          }
+        }
+      }
+    }
+
+    return result;
   }
 }

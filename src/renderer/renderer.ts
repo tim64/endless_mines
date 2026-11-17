@@ -342,6 +342,38 @@ export class Renderer {
       ctx.strokeRect(hx - 0.5, hy - 0.5, TILE_SIZE + 1, TILE_SIZE + 1);
     }
 
+    // 2.5 Render Torches
+    const torches = world.getVisibleTorches(minTileX, maxTileX, minTileY, maxTileY);
+    for (const t of torches) {
+      const tx = (t.tileX + 0.5) * TILE_SIZE;
+      const ty = (t.tileY + 0.5) * TILE_SIZE;
+
+      ctx.save();
+      // Wooden stick
+      ctx.fillStyle = '#855427';
+      ctx.fillRect(tx - 1, ty - 2, 2, 6);
+
+      // Flickering flame
+      const time = performance.now() * 0.006 + t.flickerOffset;
+      const flicker = Math.sin(time * 3);
+
+      // Outer orange flame
+      ctx.fillStyle = '#ff6a00';
+      ctx.beginPath();
+      ctx.arc(tx, ty - 3 + flicker * 0.4, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner bright yellow core
+      ctx.fillStyle = '#ffee33';
+      ctx.fillRect(tx - 1, ty - 4 + flicker * 0.4, 2, 2);
+
+      // Spark chance
+      if (Math.random() < 0.015) {
+        this.addParticle(tx, ty - 4, '#ffcc00', 1, 15);
+      }
+      ctx.restore();
+    }
+
     // 3. Render Bombs
     for (const b of bombs) {
       ctx.save();
@@ -530,6 +562,21 @@ export class Renderer {
       lCtx.fillStyle = lGrad;
       lCtx.beginPath();
       lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
+      lCtx.fill();
+    }
+
+    // Torch Warm Radial Illumination
+    for (const t of world.getVisibleTorches(minTileX, maxTileX, minTileY, maxTileY)) {
+      const ts = camera.worldToScreen((t.tileX + 0.5) * TILE_SIZE, (t.tileY + 0.5) * TILE_SIZE);
+      const flicker = Math.sin(performance.now() * 0.008 + t.flickerOffset) * 4;
+      const tRad = (52 + flicker) * camera.zoom;
+      const tGrad = lCtx.createRadialGradient(ts.sx, ts.sy, 2, ts.sx, ts.sy, tRad);
+      tGrad.addColorStop(0, 'rgba(0, 0, 0, 0.98)');
+      tGrad.addColorStop(0.55, 'rgba(0, 0, 0, 0.65)');
+      tGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      lCtx.fillStyle = tGrad;
+      lCtx.beginPath();
+      lCtx.arc(ts.sx, ts.sy, tRad, 0, Math.PI * 2);
       lCtx.fill();
     }
 

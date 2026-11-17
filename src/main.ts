@@ -23,6 +23,14 @@ const bombs: Bomb[] = [];
 // Screen shake effect
 let screenShake = 0;
 
+// Active Placeable Item Management (Bombs vs Torches)
+type PlaceableItem = 'bomb' | 'torch';
+let activeItem: PlaceableItem = 'bomb';
+
+hud.onItemSelect = (item) => {
+  activeItem = item;
+};
+
 // Grid Cardinal Direction Management (No Diagonals!)
 type CardinalDir = 'Up' | 'Down' | 'Left' | 'Right';
 const dirStack: CardinalDir[] = [];
@@ -72,9 +80,21 @@ window.addEventListener('keydown', (e) => {
     isSpacePressed = true;
   }
 
-  // Key E: Place Bomb on Grid
+  // Hotkeys for active item
+  if (e.code === 'Digit1') {
+    activeItem = 'bomb';
+    hud.setActiveItem('bomb');
+  } else if (e.code === 'Digit2') {
+    activeItem = 'torch';
+    hud.setActiveItem('torch');
+  } else if (e.code === 'KeyQ') {
+    activeItem = activeItem === 'bomb' ? 'torch' : 'bomb';
+    hud.setActiveItem(activeItem);
+  }
+
+  // Key E: Use Active Item (Bomb or Torch)
   if (e.code === 'KeyE') {
-    tryPlaceBomb();
+    useActiveItem();
   }
 });
 
@@ -97,7 +117,7 @@ window.addEventListener('mousemove', (e) => {
 
 window.addEventListener('mousedown', (e) => {
   // Ignore clicks inside UI panels
-  if ((e.target as HTMLElement).closest('#hud, #crafting-panel, #controls-hint')) {
+  if ((e.target as HTMLElement).closest('#hud, #crafting-panel, #hotbar, #controls-hint')) {
     return;
   }
 
@@ -105,7 +125,7 @@ window.addEventListener('mousedown', (e) => {
     isMouseDown = true;
   } else if (e.button === 2) {
     e.preventDefault();
-    tryPlaceBomb();
+    useActiveItem();
   }
 });
 
@@ -129,6 +149,14 @@ window.addEventListener('wheel', (e) => {
   }
 }, { passive: true });
 
+function useActiveItem() {
+  if (activeItem === 'bomb') {
+    tryPlaceBomb();
+  } else if (activeItem === 'torch') {
+    tryPlaceTorch();
+  }
+}
+
 function tryPlaceBomb() {
   if (player.bombs <= 0) return;
 
@@ -141,6 +169,24 @@ function tryPlaceBomb() {
   bombs.push(new Bomb(pt.tx, pt.ty));
   audio.playBombPlace();
   hud.update();
+}
+
+function tryPlaceTorch() {
+  if (player.inventory.torches <= 0) return;
+
+  const pt = player.getTileCoord();
+  // Can only place torch on empty AIR tile and where no torch exists yet
+  if (world.getTile(pt.tx, pt.ty) !== TileType.AIR || world.hasTorch(pt.tx, pt.ty)) {
+    return;
+  }
+
+  const placed = world.addTorch(pt.tx, pt.ty);
+  if (placed) {
+    player.inventory.torches--;
+    audio.playTorchPlace();
+    renderer.addParticle((pt.tx + 0.5) * TILE_SIZE, (pt.ty + 0.5) * TILE_SIZE, '#ffaa00', 6, 20);
+    hud.update();
+  }
 }
 
 // Main Game Loop

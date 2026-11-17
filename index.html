@@ -119,6 +119,61 @@
       opacity: 0.45;
       cursor: not-allowed;
     }
+    #hotbar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 17, 26, 0.88);
+      border: 1px solid #434c5e;
+      border-radius: 6px;
+      padding: 6px 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+    }
+    .hotbar-slot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: #2e3440;
+      border: 2px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s ease;
+    }
+    .hotbar-slot:hover {
+      background: #3b4252;
+    }
+    .hotbar-slot.active {
+      border-color: #88c0d0;
+      background: #3b4252;
+      box-shadow: 0 0 12px rgba(136, 192, 208, 0.4);
+    }
+    .slot-key {
+      color: #81a1c1;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .slot-icon {
+      font-size: 16px;
+    }
+    .slot-label {
+      color: #d8dee9;
+    }
+    .slot-count {
+      color: #ebcb8b;
+      font-weight: bold;
+    }
+    .hotbar-hint {
+      color: #7b88a1;
+      font-size: 11px;
+      margin-left: 4px;
+    }
   </style>
 </head>
 <body>
@@ -152,6 +207,10 @@
         <span>💣 Собрать бомбу</span>
         <span style="color: #d08770;">1 Уголь + 1 Сера</span>
       </button>
+      <button id="btn-craft-torch" class="craft-btn">
+        <span>🕯️ Сделать факелы (x3)</span>
+        <span style="color: #ebcb8b;">1 Уголь + 2 Земли</span>
+      </button>
       <button id="btn-upgrade-pickaxe" class="craft-btn">
         <span>⛏️ Улучшить кирку</span>
         <span id="pickaxe-cost" style="color: #88c0d0;">10 Камня</span>
@@ -166,12 +225,28 @@
       </button>
     </div>
 
+    <div id="hotbar">
+      <div id="slot-bomb" class="hotbar-slot active">
+        <span class="slot-key">[1]</span>
+        <span class="slot-icon">💣</span>
+        <span class="slot-label">Бомба</span>
+        <span id="hotbar-bombs-count" class="slot-count">3</span>
+      </div>
+      <div id="slot-torch" class="hotbar-slot">
+        <span class="slot-key">[2]</span>
+        <span class="slot-icon">🕯️</span>
+        <span class="slot-label">Факел</span>
+        <span id="hotbar-torches-count" class="slot-count">5</span>
+      </div>
+      <div class="hotbar-hint">[Q] Переключить</div>
+    </div>
+
     <div id="controls-hint">
-      <b>Управление (строго по сетке):</b><br />
-      [W, A, S, D] / [Стрелки] — движение по клеткам<br />
-      [Упор в стену] или [Пробел] — копать перед собой<br />
-      [ЛКМ] по блоку — копать выбранный блок<br />
-      [E] или [ПКМ] — поставить бомбу на клетку<br />
+      <b>Управление:</b><br />
+      [W, A, S, D] / [Стрелки] — шаг по сетке<br />
+      [Упор в стену] / [Пробел] — копать перед собой<br />
+      [E] или [ПКМ] — использовать активный предмет<br />
+      [Q] или [1] / [2] — переключить Бомба / Факел<br />
       [Колесо мыши] — зум камеры
     </div>
   </div>

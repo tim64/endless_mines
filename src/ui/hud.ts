@@ -20,11 +20,21 @@ export class HUD {
   private resObsidianEl!: HTMLElement;
 
   private btnCraftBomb!: HTMLButtonElement;
+  private btnCraftTorch!: HTMLButtonElement;
   private btnUpgradePickaxe!: HTMLButtonElement;
   private btnCraftMedkit!: HTMLButtonElement;
   private btnUpgradeLight!: HTMLButtonElement;
   private pickaxeCostEl!: HTMLElement;
   private lightCostEl!: HTMLElement;
+
+  // Hotbar
+  private slotBombEl!: HTMLElement;
+  private slotTorchEl!: HTMLElement;
+  private hotbarBombsCountEl!: HTMLElement;
+  private hotbarTorchesCountEl!: HTMLElement;
+
+  public activeItem: 'bomb' | 'torch' = 'bomb';
+  public onItemSelect?: (item: 'bomb' | 'torch') => void;
 
   constructor(player: Player) {
     this.player = player;
@@ -48,11 +58,17 @@ export class HUD {
     this.resObsidianEl = document.getElementById('res-obsidian')!;
 
     this.btnCraftBomb = document.getElementById('btn-craft-bomb') as HTMLButtonElement;
+    this.btnCraftTorch = document.getElementById('btn-craft-torch') as HTMLButtonElement;
     this.btnUpgradePickaxe = document.getElementById('btn-upgrade-pickaxe') as HTMLButtonElement;
     this.btnCraftMedkit = document.getElementById('btn-craft-medkit') as HTMLButtonElement;
     this.btnUpgradeLight = document.getElementById('btn-upgrade-light') as HTMLButtonElement;
     this.pickaxeCostEl = document.getElementById('pickaxe-cost')!;
     this.lightCostEl = document.getElementById('light-cost')!;
+
+    this.slotBombEl = document.getElementById('slot-bomb')!;
+    this.slotTorchEl = document.getElementById('slot-torch')!;
+    this.hotbarBombsCountEl = document.getElementById('hotbar-bombs-count')!;
+    this.hotbarTorchesCountEl = document.getElementById('hotbar-torches-count')!;
   }
 
   private bindEvents() {
@@ -64,6 +80,27 @@ export class HUD {
         this.player.bombs += 1;
         this.update();
       }
+    });
+
+    // 1.5 Craft Torches: 1 Coal + 2 Dirt -> +3 Torches
+    this.btnCraftTorch.addEventListener('click', () => {
+      if (this.player.inventory.coal >= 1 && this.player.inventory.dirt >= 2) {
+        this.player.inventory.coal -= 1;
+        this.player.inventory.dirt -= 2;
+        this.player.inventory.torches += 3;
+        this.update();
+      }
+    });
+
+    // Hotbar click events
+    this.slotBombEl.addEventListener('click', () => {
+      this.setActiveItem('bomb');
+      if (this.onItemSelect) this.onItemSelect('bomb');
+    });
+
+    this.slotTorchEl.addEventListener('click', () => {
+      this.setActiveItem('torch');
+      if (this.onItemSelect) this.onItemSelect('torch');
     });
 
     // 2. Upgrade Pickaxe
@@ -106,6 +143,17 @@ export class HUD {
     });
   }
 
+  public setActiveItem(item: 'bomb' | 'torch') {
+    this.activeItem = item;
+    if (item === 'bomb') {
+      this.slotBombEl.classList.add('active');
+      this.slotTorchEl.classList.remove('active');
+    } else {
+      this.slotTorchEl.classList.add('active');
+      this.slotBombEl.classList.remove('active');
+    }
+  }
+
   public update() {
     const p = this.player;
 
@@ -116,6 +164,10 @@ export class HUD {
     const pick = p.getPickaxe();
     this.pickaxeEl.innerText = `${pick.name} (ур. ${pick.tier})`;
     this.bombsEl.innerText = `${p.bombs}`;
+
+    // Hotbar counts
+    this.hotbarBombsCountEl.innerText = `${p.bombs}`;
+    this.hotbarTorchesCountEl.innerText = `${p.inventory.torches}`;
 
     const tx = Math.floor(p.x / TILE_SIZE);
     const ty = Math.floor(p.y / TILE_SIZE);
@@ -134,6 +186,7 @@ export class HUD {
 
     // Crafting availability
     this.btnCraftBomb.disabled = !(p.inventory.coal >= 1 && p.inventory.sulfur >= 1);
+    this.btnCraftTorch.disabled = !(p.inventory.coal >= 1 && p.inventory.dirt >= 2);
 
     // Pickaxe upgrade costs
     const nextTier = p.pickaxeTier + 1;

@@ -3,13 +3,20 @@ import { Inventory, PickaxeInfo, TileType } from '../types';
 import { World } from '../world/world';
 
 export class Player {
-  public x: number = 0; // World pixels
+  // Discrete Grid Coordinates
+  public tileX: number = 0;
+  public tileY: number = 0;
+  public targetTileX: number = 0;
+  public targetTileY: number = 0;
+
+  // Grid Movement Animation State
+  public isMoving: boolean = false;
+  public moveProgress: number = 0.0; // 0.0 to 1.0
+  public stepDuration: number = 0.14; // Seconds per tile step (crisp & responsive)
+
+  // Interpolated World Pixel Coordinates for smooth rendering
+  public x: number = 0;
   public y: number = 0;
-  public vx: number = 0;
-  public vy: number = 0;
-  public width: number = 10;
-  public height: number = 10;
-  public speed: number = 90; // pixels per second
 
   public hp: number = 100;
   public maxHp: number = 100;
@@ -25,18 +32,18 @@ export class Player {
 
   public pickaxeTier: number = 1; // starts with Wooden Pickaxe
   public bombs: number = 3;
-  public lightRadius: number = 100; // in pixels
+  public lightRadius: number = 105; // in pixels
 
+  // Strictly Cardinal Facing: (0, 1) = Down, (0, -1) = Up, (-1, 0) = Left, (1, 0) = Right
   public facingX: number = 0;
   public facingY: number = 1;
 
-  public isMining: boolean = false;
-  public miningTargetX: number | null = null;
-  public miningTargetY: number | null = null;
-
-  constructor(startX: number = 0, startY: number = 0) {
-    this.x = startX;
-    this.y = startY;
+  constructor(startTileX: number = 0, startTileY: number = 0) {
+    this.tileX = startTileX;
+    this.tileY = startTileY;
+    this.targetTileX = startTileX;
+    this.targetTileY = startTileY;
+    this.updatePixelCoords();
   }
 
   public getPickaxe(): PickaxeInfo {
@@ -45,59 +52,92 @@ export class Player {
 
   public getTileCoord(): { tx: number; ty: number } {
     return {
-      tx: Math.floor(this.x / TILE_SIZE),
-      ty: Math.floor(this.y / TILE_SIZE),
+      tx: this.tileX,
+      ty: this.tileY,
     };
   }
 
-  public move(inputX: number, inputY: number, dt: number, world: World) {
-    if (inputX !== 0 || inputY !== 0) {
-      // Normalize diagonal movement
-      const len = Math.hypot(inputX, inputY);
-      const nx = inputX / len;
-      const ny = inputY / len;
-
-      this.facingX = Math.sign(inputX) || this.facingX;
-      this.facingY = Math.sign(inputY) || this.facingY;
-
-      const moveDistX = nx * this.speed * dt;
-      const moveDistY = ny * this.speed * dt;
-
-      // X collision
-      this.tryMoveAxis(moveDistX, 0, world);
-      // Y collision
-      this.tryMoveAxis(0, moveDistY, world);
-    }
+  public getFacingTileCoord(): { tx: number; ty: number } {
+    return {
+      tx: this.tileX + this.facingX,
+      ty: this.tileY + this.facingY,
+    };
   }
 
-  private tryMoveAxis(dx: number, dy: number, world: World) {
-    const nextX = this.x + dx;
-    const nextY = this.y + dy;
-    const halfW = this.width / 2;
-    const halfH = this.height / 2;
+  public updatePixelCoords() {
+    const curPxX = (this.tileX + 0.5) * TILE_SIZE;
+    const curPxY = (this.tileY + 0.5) * TILE_SIZE;
+    const tarPxX = (this.targetTileX + 0.5) * TILE_SIZE;
+    const tarPxY = (this.targetTileY + 0.5) * TILE_SIZE;
 
-    const minTileX = Math.floor((nextX - halfW) / TILE_SIZE);
-    const maxTileX = Math.floor((nextX + halfW) / TILE_SIZE);
-    const minTileY = Math.floor((nextY - halfH) / TILE_SIZE);
-    const maxTileY = Math.floor((nextY + halfH) / TILE_SIZE);
+    // Smooth movement interpolation
+    this.x = curPxX + (tarPxX - curPxX) * this.moveProgress;
+    this.y = curPxY + (tarPxY - curPxY) * this.moveProgress;
+  }
 
-    for (let ty = minTileY; ty <= maxTileY; ty++) {
-      for (let tx = minTileX; tx <= maxTileX; tx++) {
-        if (world.isSolid(tx, ty)) {
-          // Block collision!
-          return;
-        }
+  public update(dt: number) {
+    if (this.isMoving) {
+      this.moveProgress += dt / this.stepDuration;
+      if (this.moveProgress >= 1.0) {
+        this.tileX = this.targetTileX;
+        this.tileY = this.targetTileY;
+        this.moveProgress = 0.0;
+        this.isMoving = false;
       }
     }
-
-    this.x = nextX;
-    this.y = nextY;
+    this.updatePixelCoords();
   }
 
-  public setMiningTarget(tx: number | null, ty: number | null) {
-    this.miningTargetX = tx;
-    this.miningTargetY = ty;
-    this.isMining = tx !== null && ty !== null;
+  /**
+   * Attempts a cardinal grid move.
+   * If wall is encountered, turns to face it and reports wall collision (for mining).
+   */
+  public tryStep(
+    dirX: number,
+    dirY: number,
+    world: World
+  ): { moved: boolean; hitWall: boolean; wallTile?: { tx: number; ty: number } } {
+    // Strictly cardinal: horizontal takes precedence if specified, else vertical
+    if (dirX !== 0) {
+      this.facingX = dirX > 0 ? 1 : -1;
+      this.facingY = 0;
+    } else if (dirY !== 0) {
+      this.facingX = 0;
+      this.facingY = dirY > 0 ? 1 : -1;
+    }
+
+    if (this.isMoving) {
+      return { moved: false, hitWall: false };
+    }
+
+    const nextTx = this.tileX + this.facingX;
+    const nextTy = this.tileY + this.facingY;
+
+    if (world.isSolid(nextTx, nextTy)) {
+      return {
+        moved: false,
+        hitWall: true,
+        wallTile: { tx: nextTx, ty: nextTy },
+      };
+    }
+
+    // Free tile -> start stepping into it
+    this.targetTileX = nextTx;
+    this.targetTileY = nextTy;
+    this.isMoving = true;
+    this.moveProgress = 0.0;
+
+    return { moved: true, hitWall: false };
+  }
+
+  public setFacing(dirX: number, dirY: number) {
+    if (Math.abs(dirX) >= Math.abs(dirY) && dirX !== 0) {
+      this.facingX = dirX > 0 ? 1 : -1;
+      this.facingY = 0;
+    } else if (dirY !== 0) {
+      this.facingX = 0;
+      this.facingY = dirY > 0 ? 1 : -1;
+    }
   }
 
   public takeDamage(amount: number) {

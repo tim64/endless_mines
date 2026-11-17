@@ -10,11 +10,10 @@ import { SoundManager } from './audio';
 
 // Setup Canvas and Engine
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const container = document.getElementById('game-container') as HTMLDivElement;
 
 const audio = new SoundManager();
 const world = new World(Math.floor(Math.random() * 100000));
-const player = new Player(0, 0); // Spawn at center
+const player = new Player(0, 0); // Spawn at center tile (0, 0)
 const camera = new Camera(window.innerWidth, window.innerHeight);
 const renderer = new Renderer(canvas);
 const hud = new HUD(player);
@@ -24,8 +23,12 @@ const bombs: Bomb[] = [];
 // Screen shake effect
 let screenShake = 0;
 
-// Input State
-const keys: Record<string, boolean> = {};
+// Grid Cardinal Direction Management (No Diagonals!)
+type CardinalDir = 'Up' | 'Down' | 'Left' | 'Right';
+const dirStack: CardinalDir[] = [];
+let isSpacePressed = false;
+
+// Mouse State
 let mouseScreenX = 0;
 let mouseScreenY = 0;
 let isMouseDown = false;
@@ -44,18 +47,45 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 handleResize();
 
+function pushDir(dir: CardinalDir) {
+  const idx = dirStack.indexOf(dir);
+  if (idx !== -1) dirStack.splice(idx, 1);
+  dirStack.push(dir);
+}
+
+function removeDir(dir: CardinalDir) {
+  const idx = dirStack.indexOf(dir);
+  if (idx !== -1) dirStack.splice(idx, 1);
+}
+
 // Keyboard Listeners
 window.addEventListener('keydown', (e) => {
-  keys[e.code] = true;
+  if (e.repeat && e.code !== 'Space') return;
 
-  // Key E: Place Bomb
+  if (e.code === 'KeyW' || e.code === 'ArrowUp') pushDir('Up');
+  else if (e.code === 'KeyS' || e.code === 'ArrowDown') pushDir('Down');
+  else if (e.code === 'KeyA' || e.code === 'ArrowLeft') pushDir('Left');
+  else if (e.code === 'KeyD' || e.code === 'ArrowRight') pushDir('Right');
+
+  if (e.code === 'Space') {
+    isSpacePressed = true;
+  }
+
+  // Key E: Place Bomb on Grid
   if (e.code === 'KeyE') {
     tryPlaceBomb();
   }
 });
 
 window.addEventListener('keyup', (e) => {
-  keys[e.code] = false;
+  if (e.code === 'KeyW' || e.code === 'ArrowUp') removeDir('Up');
+  else if (e.code === 'KeyS' || e.code === 'ArrowDown') removeDir('Down');
+  else if (e.code === 'KeyA' || e.code === 'ArrowLeft') removeDir('Left');
+  else if (e.code === 'KeyD' || e.code === 'ArrowRight') removeDir('Right');
+
+  if (e.code === 'Space') {
+    isSpacePressed = false;
+  }
 });
 
 // Mouse Listeners
@@ -102,7 +132,7 @@ function tryPlaceBomb() {
   if (player.bombs <= 0) return;
 
   const pt = player.getTileCoord();
-  // Don't place two bombs in the exact same spot
+  // Don't place two bombs in the exact same tile
   const existing = bombs.find(b => b.tileX === pt.tx && b.tileY === pt.ty);
   if (existing) return;
 
@@ -116,20 +146,31 @@ function tryPlaceBomb() {
 let lastTime = performance.now();
 
 function gameLoop(now: number) {
-  const dt = Math.min(0.05, (now - lastTime) / 1000); // Clamped delta time
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  // 1. Process Player Movement
-  let inputX = 0;
-  let inputY = 0;
-  if (keys['KeyW'] || keys['ArrowUp']) inputY -= 1;
-  if (keys['KeyS'] || keys['ArrowDown']) inputY += 1;
-  if (keys['KeyA'] || keys['ArrowLeft']) inputX -= 1;
-  if (keys['KeyD'] || keys['ArrowRight']) inputX += 1;
+  // 1. Update Player Grid Transition
+  player.update(dt);
 
-  player.move(inputX, inputY, dt, world);
+  // 2. Process Grid Movement & Auto-Mining when bumping into walls
+  let bumpingWallTile: { tx: number; ty: number } | null = null;
 
-  // 2. Camera Follow & Screen Shake
+  if (dirStack.length > 0) {
+    const activeDir = dirStack[dirStack.length - 1];
+    let dx = 0;
+    let dy = 0;
+    if (activeDir === 'Up') dy = -1;
+    else if (activeDir === 'Down') dy = 1;
+    else if (activeDir === 'Left') dx = -1;
+    else if (activeDir === 'Right') dx = 1;
+
+    const stepRes = player.tryStep(dx, dy, world);
+    if (stepRes.hitWall && stepRes.wallTile) {
+      bumpingWallTile = stepRes.wallTile;
+    }
+  }
+
+  // 3. Camera Follow & Screen Shake
   camera.follow(player.x, player.y);
   if (screenShake > 0) {
     screenShake -= dt * 2.5;
@@ -137,43 +178,47 @@ function gameLoop(now: number) {
     camera.y += (Math.random() - 0.5) * screenShake * 16;
   }
 
-  // 3. Mouse Hover & Target Tile Calculation
+  // 4. Mouse Hover & Target Tile Calculation
   const worldPos = camera.screenToWorld(mouseScreenX, mouseScreenY);
   const hoverTx = Math.floor(worldPos.wx / TILE_SIZE);
   const hoverTy = Math.floor(worldPos.wy / TILE_SIZE);
   hoveredTile = { tx: hoverTx, ty: hoverTy };
 
-  // 4. Mining Logic
+  // 5. Determine Mining Target:
+  // Priority:
+  //   A) Holding move into a wall (auto-digging forward!)
+  //   B) Holding Spacebar (digs the facing tile)
+  //   C) Holding Left Click on an adjacent tile
   let targetMiningX: number | null = null;
   let targetMiningY: number | null = null;
 
-  const playerTile = player.getTileCoord();
+  const facingTile = player.getFacingTileCoord();
 
-  // Spacebar digs in the facing direction
-  if (keys['Space']) {
-    targetMiningX = playerTile.tx + player.facingX;
-    targetMiningY = playerTile.ty + player.facingY;
+  if (bumpingWallTile) {
+    targetMiningX = bumpingWallTile.tx;
+    targetMiningY = bumpingWallTile.ty;
+  } else if (isSpacePressed) {
+    targetMiningX = facingTile.tx;
+    targetMiningY = facingTile.ty;
   } else if (isMouseDown && hoveredTile) {
-    // Check distance between player and clicked tile (mining range max ~2.6 tiles)
-    const pTileX = playerTile.tx;
-    const pTileY = playerTile.ty;
-    const distToTile = Math.hypot(hoveredTile.tx - pTileX, hoveredTile.ty - pTileY);
-
-    if (distToTile <= 2.6) {
+    const distToTile = Math.hypot(hoveredTile.tx - player.tileX, hoveredTile.ty - player.tileY);
+    if (distToTile <= 2.2) {
       targetMiningX = hoveredTile.tx;
       targetMiningY = hoveredTile.ty;
+      player.setFacing(hoveredTile.tx - player.tileX, hoveredTile.ty - player.tileY);
     }
   }
 
+  // 6. Mine Block if Target Chosen
   if (targetMiningX !== null && targetMiningY !== null) {
     const tile = world.getTile(targetMiningX, targetMiningY);
     if (tile !== TileType.AIR && tile !== TileType.BEDROCK) {
       const pick = player.getPickaxe();
       const res = world.damageTile(targetMiningX, targetMiningY, pick.power * dt, pick.tier);
 
-      // Dig sound and particles
+      // Digging Audio & Particles
       digSoundTimer += dt;
-      if (digSoundTimer >= 0.18) {
+      if (digSoundTimer >= 0.16) {
         audio.playDig();
         digSoundTimer = 0;
       }
@@ -183,10 +228,10 @@ function gameLoop(now: number) {
       const targetPy = (targetMiningY + 0.5) * TILE_SIZE;
       renderer.addParticle(targetPx, targetPy, def.color, 2, 40);
 
-      // Block broken!
+      // Block Broken!
       if (res.broken) {
         audio.playBreak();
-        renderer.addParticle(targetPx, targetPy, def.color, 12, 70);
+        renderer.addParticle(targetPx, targetPy, def.color, 14, 70);
 
         for (const drop of res.drops) {
           player.addResource(drop.resource, drop.count);
@@ -203,19 +248,19 @@ function gameLoop(now: number) {
     }
   }
 
-  // 5. Update Bombs & Explosions
+  // 7. Update Bombs & Explosions
   for (let i = bombs.length - 1; i >= 0; i--) {
     const bomb = bombs[i];
     const exploded = bomb.update(dt);
     if (exploded) {
-      // Explode!
+      // Detonate!
       audio.playExplosion();
       screenShake = 1.0;
       renderer.addExplosionParticles(bomb.x, bomb.y, bomb.radius * TILE_SIZE);
 
       const expRes = world.explode(bomb.tileX, bomb.tileY, bomb.radius);
 
-      // Collect dropped resources from explosion
+      // Collect dropped resources
       for (const drop of expRes.drops) {
         player.addResource(drop.resource, drop.count);
         renderer.addFloatingText(
@@ -227,7 +272,7 @@ function gameLoop(now: number) {
       }
 
       // Damage player if inside blast radius
-      const distToPlayer = Math.hypot(player.x - bomb.x, player.y - bomb.y) / TILE_SIZE;
+      const distToPlayer = Math.hypot(player.tileX - bomb.tileX, player.tileY - bomb.tileY);
       if (distToPlayer <= bomb.radius) {
         const damage = Math.round((1 - distToPlayer / bomb.radius) * 75);
         player.takeDamage(damage);
@@ -239,13 +284,18 @@ function gameLoop(now: number) {
     }
   }
 
-  // 6. Update Visual Effects & Particles
+  // 8. Update Effects & Particles
   renderer.updateEffects(dt);
 
-  // 7. Render Everything
-  renderer.render(world, player, bombs, camera, hoveredTile);
+  // 9. Render Screen
+  // Pass facing tile as target indicator if not mouse hovering
+  const activeTarget = (targetMiningX !== null && targetMiningY !== null)
+    ? { tx: targetMiningX, ty: targetMiningY }
+    : (hoveredTile || facingTile);
 
-  // 8. Update HUD coords
+  renderer.render(world, player, bombs, camera, activeTarget);
+
+  // 10. Update HUD
   hud.update();
 
   requestAnimationFrame(gameLoop);

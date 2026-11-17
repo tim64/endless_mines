@@ -6,6 +6,7 @@ export class HUD {
 
   // DOM Elements
   private hpEl!: HTMLElement;
+  private hudGoldEl!: HTMLElement;
   private pickaxeEl!: HTMLElement;
   private bombsEl!: HTMLElement;
   private depthEl!: HTMLElement;
@@ -18,8 +19,10 @@ export class HUD {
   private resSulfurEl!: HTMLElement;
   private resGemsEl!: HTMLElement;
   private resObsidianEl!: HTMLElement;
+  private resGoldEl!: HTMLElement;
 
   private btnCraftBomb!: HTMLButtonElement;
+  private btnCraftDynamite!: HTMLButtonElement;
   private btnCraftTorch!: HTMLButtonElement;
   private btnUpgradePickaxe!: HTMLButtonElement;
   private btnCraftMedkit!: HTMLButtonElement;
@@ -44,6 +47,7 @@ export class HUD {
 
   private initElements() {
     this.hpEl = document.getElementById('hud-hp')!;
+    this.hudGoldEl = document.getElementById('hud-gold')!;
     this.pickaxeEl = document.getElementById('hud-pickaxe')!;
     this.bombsEl = document.getElementById('hud-bombs')!;
     this.depthEl = document.getElementById('hud-depth')!;
@@ -56,8 +60,10 @@ export class HUD {
     this.resSulfurEl = document.getElementById('res-sulfur')!;
     this.resGemsEl = document.getElementById('res-gems')!;
     this.resObsidianEl = document.getElementById('res-obsidian')!;
+    this.resGoldEl = document.getElementById('res-gold')!;
 
     this.btnCraftBomb = document.getElementById('btn-craft-bomb') as HTMLButtonElement;
+    this.btnCraftDynamite = document.getElementById('btn-craft-dynamite') as HTMLButtonElement;
     this.btnCraftTorch = document.getElementById('btn-craft-torch') as HTMLButtonElement;
     this.btnUpgradePickaxe = document.getElementById('btn-upgrade-pickaxe') as HTMLButtonElement;
     this.btnCraftMedkit = document.getElementById('btn-craft-medkit') as HTMLButtonElement;
@@ -78,6 +84,16 @@ export class HUD {
         this.player.inventory.coal -= 1;
         this.player.inventory.sulfur -= 1;
         this.player.bombs += 1;
+        this.update();
+      }
+    });
+
+    // 1.2 Craft Dynamite Bundle: 3 Gold + 1 Sulfur -> +3 Bombs
+    this.btnCraftDynamite.addEventListener('click', () => {
+      if (this.player.inventory.gold >= 3 && this.player.inventory.sulfur >= 1) {
+        this.player.inventory.gold -= 3;
+        this.player.inventory.sulfur -= 1;
+        this.player.bombs += 3;
         this.update();
       }
     });
@@ -160,6 +176,7 @@ export class HUD {
     // Stats
     this.hpEl.innerText = `${Math.ceil(p.hp)}`;
     this.hpEl.style.color = p.hp > 40 ? '#a3be8c' : '#bf616a';
+    this.hudGoldEl.innerText = `${p.inventory.gold}`;
 
     const pick = p.getPickaxe();
     this.pickaxeEl.innerText = `${pick.name} (ур. ${pick.tier})`;
@@ -176,6 +193,7 @@ export class HUD {
     this.coordsEl.innerText = `${tx}, ${ty}`;
 
     // Resources
+    this.resGoldEl.innerText = `${p.inventory.gold}`;
     this.resDirtEl.innerText = `${p.inventory.dirt}`;
     this.resStoneEl.innerText = `${p.inventory.stone}`;
     this.resCoalEl.innerText = `${p.inventory.coal}`;
@@ -186,6 +204,7 @@ export class HUD {
 
     // Crafting availability
     this.btnCraftBomb.disabled = !(p.inventory.coal >= 1 && p.inventory.sulfur >= 1);
+    this.btnCraftDynamite.disabled = !(p.inventory.gold >= 3 && p.inventory.sulfur >= 1);
     this.btnCraftTorch.disabled = !(p.inventory.coal >= 1 && p.inventory.dirt >= 2);
 
     // Pickaxe upgrade costs

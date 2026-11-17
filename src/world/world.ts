@@ -2,6 +2,7 @@ import { CHUNK_SIZE, TILE_DEFINITIONS, TILE_SIZE } from '../constants';
 import { TileType, TileDef, TileDrop, Torch } from '../types';
 import { Chunk } from './chunk';
 import { SimplexNoise } from '../utils/noise';
+import { tryStampRoom } from './rooms';
 
 export interface PendingLiquid {
   x: number;
@@ -148,6 +149,10 @@ export class World {
         else if (rareOreNoise > 0.65 && dist > 18) {
           finalTile = TileType.IRON;
         }
+        // Gold: valuable currency, appears in medium-deep stone
+        else if (rareOreNoise > 0.52 && rareOreNoise < 0.65 && dist > 12) {
+          finalTile = TileType.GOLD;
+        }
         // Gems: rare, in the deep hard stone
         else if (rareOreNoise < -0.72 && dist > 35) {
           finalTile = TileType.GEM;
@@ -156,6 +161,9 @@ export class World {
         chunk.tiles[ly * CHUNK_SIZE + lx] = finalTile;
       }
     }
+
+    // Stamp procedural template room (Starter Bunker at (0, 0), or random rare template rooms)
+    tryStampRoom(chunk, cx, cy, this.seed);
 
     return chunk;
   }

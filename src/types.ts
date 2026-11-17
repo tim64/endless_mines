@@ -11,10 +11,11 @@ export enum TileType {
   LAVA = 9,
   WATER = 10,
   OBSIDIAN = 11,
+  GOLD = 12,
 }
 
 export interface TileDrop {
-  resource: 'dirt' | 'stone' | 'coal' | 'iron' | 'sulfur' | 'gems' | 'obsidian';
+  resource: 'dirt' | 'stone' | 'coal' | 'iron' | 'sulfur' | 'gems' | 'obsidian' | 'gold';
   count: number;
   chance: number;
 }
@@ -39,6 +40,7 @@ export interface Inventory {
   sulfur: number;
   gems: number;
   obsidian: number;
+  gold: number;
   torches: number;
 }
 

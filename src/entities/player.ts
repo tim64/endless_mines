@@ -29,6 +29,7 @@ export class Player {
     sulfur: 0,
     gems: 0,
     obsidian: 0,
+    gold: 0,
     torches: 5,
   };
 

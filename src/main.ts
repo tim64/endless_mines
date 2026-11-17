@@ -13,8 +13,9 @@ const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 
 const audio = new SoundManager();
 const world = new World(Math.floor(Math.random() * 100000));
-const player = new Player(0, 0); // Spawn at center tile (0, 0)
+const player = new Player(8, 8); // Spawn in the center of Miner's Starter Bunker
 const camera = new Camera(window.innerWidth, window.innerHeight);
+camera.follow(player.x, player.y, 1.0);
 const renderer = new Renderer(canvas);
 const hud = new HUD(player);
 

@@ -184,6 +184,7 @@
       <div class="panel">
         <div class="panel-title">⛏️ Шахтер</div>
         <div>HP: <span id="hud-hp" style="color: #a3be8c; font-weight: bold;">100</span> / 100</div>
+        <div>Золото (валюта): <span id="hud-gold" style="color: #ffd700; font-weight: bold;">0</span> 🪙</div>
         <div>Кирка: <span id="hud-pickaxe" style="color: #ebcb8b; font-weight: bold;">Деревянная (ур. 1)</span></div>
         <div>Бомбы: <span id="hud-bombs" style="color: #bf616a; font-weight: bold;">3</span> шт. (клавиша [E] / ПКМ)</div>
         <div>Глубина: <span id="hud-depth" style="color: #81a1c1;">0 м</span> | Координаты: <span id="hud-coords">0, 0</span></div>
@@ -191,6 +192,7 @@
 
       <div class="panel">
         <div class="panel-title">🎒 Ресурсы</div>
+        <div class="resource-row"><span class="res-badge" style="background: #ffd700;"></span> Золото: <span id="res-gold">0</span></div>
         <div class="resource-row"><span class="res-badge" style="background: #a3be8c;"></span> Земля: <span id="res-dirt">0</span></div>
         <div class="resource-row"><span class="res-badge" style="background: #7a7f8d;"></span> Камень: <span id="res-stone">0</span></div>
         <div class="resource-row"><span class="res-badge" style="background: #2b2b2b; border: 1px solid #555;"></span> Уголь: <span id="res-coal">0</span></div>
@@ -206,6 +208,10 @@
       <button id="btn-craft-bomb" class="craft-btn">
         <span>💣 Собрать бомбу</span>
         <span style="color: #d08770;">1 Уголь + 1 Сера</span>
+      </button>
+      <button id="btn-craft-dynamite" class="craft-btn">
+        <span>💥 Запас взрывчатки (+3)</span>
+        <span style="color: #ffd700;">3 Золота + 1 Сера</span>
       </button>
       <button id="btn-craft-torch" class="craft-btn">
         <span>🕯️ Сделать факелы (x3)</span>

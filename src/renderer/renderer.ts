@@ -253,6 +253,13 @@ export class Renderer {
           if (tile === TileType.GEM) {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(px + ox + 1, py + oy + 1, 1, 1);
+          } else if (tile === TileType.GOLD) {
+            const time = performance.now() * 0.004;
+            const glint = Math.sin(time + tx * 3.1 + ty * 5.3);
+            if (glint > 0.5) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(px + ox + 1, py + oy + 1, 1, 1);
+            }
           }
         }
 

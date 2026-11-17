@@ -141,6 +141,20 @@ export const TILE_DEFINITIONS: Record<TileType, TileDef> = {
       { resource: 'gems', count: 1, chance: 0.35 },
     ],
   },
+  [TileType.GOLD]: {
+    id: TileType.GOLD,
+    name: 'Золотая руда',
+    color: '#4e432f',
+    edgeColor: '#362e20',
+    detailColor: '#ffd700',
+    maxHp: 5.0,
+    minToolTier: 2,
+    blastResistance: 25,
+    drops: [
+      { resource: 'gold', count: 1, chance: 1.0 },
+      { resource: 'stone', count: 1, chance: 0.5 },
+    ],
+  },
 };
 
 export const PICKAXE_TIERS: PickaxeInfo[] = [

@@ -8,6 +8,7 @@ export enum TileType {
   SULFUR = 6,
   GEM = 7,
   BEDROCK = 8,
+  LAVA = 9,
 }
 
 export interface TileDrop {

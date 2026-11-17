@@ -34,6 +34,7 @@ let mouseScreenY = 0;
 let isMouseDown = false;
 let hoveredTile: { tx: number; ty: number } | null = null;
 let digSoundTimer = 0;
+let lavaBurnTimer = 0;
 
 // Window Resize Handler
 function handleResize() {
@@ -212,7 +213,7 @@ function gameLoop(now: number) {
   // 6. Mine Block if Target Chosen
   if (targetMiningX !== null && targetMiningY !== null) {
     const tile = world.getTile(targetMiningX, targetMiningY);
-    if (tile !== TileType.AIR && tile !== TileType.BEDROCK) {
+    if (tile !== TileType.AIR && tile !== TileType.BEDROCK && tile !== TileType.LAVA) {
       const pick = player.getPickaxe();
       const res = world.damageTile(targetMiningX, targetMiningY, pick.power * dt, pick.tier);
 
@@ -284,10 +285,36 @@ function gameLoop(now: number) {
     }
   }
 
-  // 8. Update Effects & Particles
+  // 8. Update Lava Simulation & Flows
+  world.updateLava(dt, player.tileX, player.tileY, (wx, wy) => {
+    audio.playLavaSizzle();
+    const lpx = (wx + 0.5) * TILE_SIZE;
+    const lpy = (wy + 0.5) * TILE_SIZE;
+    renderer.addParticle(lpx, lpy, '#ff6600', 8, 45);
+    renderer.addParticle(lpx, lpy, '#555555', 4, 25);
+  });
+
+  // 9. Player Lava Hazard Check
+  const currentTile = world.getTile(player.tileX, player.tileY);
+  if (currentTile === TileType.LAVA) {
+    lavaBurnTimer += dt;
+    renderer.addParticle(player.x, player.y, '#ff4400', 2, 35);
+    renderer.addParticle(player.x, player.y, '#444444', 1, 15);
+
+    player.takeDamage(35 * dt);
+
+    if (lavaBurnTimer >= 0.45) {
+      audio.playLavaSizzle();
+      renderer.addFloatingText(player.x, player.y - 10, 'ОГОНЬ! -15', '#ff4400');
+      lavaBurnTimer = 0;
+    }
+    hud.update();
+  }
+
+  // 10. Update Effects & Particles
   renderer.updateEffects(dt);
 
-  // 9. Render Screen
+  // 11. Render Screen
   // Pass facing tile as target indicator if not mouse hovering
   const activeTarget = (targetMiningX !== null && targetMiningY !== null)
     ? { tx: targetMiningX, ty: targetMiningY }
@@ -295,7 +322,7 @@ function gameLoop(now: number) {
 
   renderer.render(world, player, bombs, camera, activeTarget);
 
-  // 10. Update HUD
+  // 12. Update HUD
   hud.update();
 
   requestAnimationFrame(gameLoop);

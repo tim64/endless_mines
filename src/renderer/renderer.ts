@@ -156,6 +156,37 @@ export class Renderer {
           continue;
         }
 
+        if (tile === TileType.LAVA) {
+          const time = performance.now() * 0.003;
+          const bubble = Math.sin(time * 2 + tx * 1.5 + ty * 2.2);
+
+          // Magma base color with subtle heat shimmer
+          ctx.fillStyle = bubble > 0.3 ? '#ff4d00' : '#cc2900';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+          // Hot inner glow
+          ctx.fillStyle = '#ff9900';
+          ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+          // Yellow bubbling core
+          ctx.fillStyle = '#ffee33';
+          const bx = 4 + Math.floor((Math.sin(time * 3 + tx * 3) + 1) * 3);
+          const by = 4 + Math.floor((Math.cos(time * 3 + ty * 3) + 1) * 3);
+          ctx.fillRect(px + bx, py + by, 3, 3);
+
+          // Floating dark crust fleck
+          ctx.fillStyle = '#6b1100';
+          const cxFleck = (tx * 7 + ty * 3) % 9 + 2;
+          const cyFleck = (tx * 3 + ty * 7) % 9 + 2;
+          ctx.fillRect(px + cxFleck, py + cyFleck, 3, 2);
+
+          // Chance to spawn floating ember particle
+          if (Math.random() < 0.02) {
+            this.addParticle(px + Math.random() * TILE_SIZE, py + Math.random() * TILE_SIZE, '#ffaa00', 1, 25);
+          }
+          continue;
+        }
+
         const def = TILE_DEFINITIONS[tile];
 
         // Base tile fill
@@ -309,10 +340,10 @@ export class Renderer {
     ctx.restore(); // Restore camera transform
 
     // 7. Dynamic Fog of War / Lighting
-    this.renderLighting(player, bombs, camera);
+    this.renderLighting(world, player, bombs, camera);
   }
 
-  private renderLighting(player: Player, bombs: Bomb[], camera: Camera) {
+  private renderLighting(world: World, player: Player, bombs: Bomb[], camera: Camera) {
     const lCtx = this.lightCtx;
     const cw = this.canvas.width;
     const ch = this.canvas.height;
@@ -342,6 +373,30 @@ export class Renderer {
     lCtx.beginPath();
     lCtx.arc(playerScreen.sx, playerScreen.sy, rad, 0, Math.PI * 2);
     lCtx.fill();
+
+    // Lava Illumination
+    const bounds = camera.getVisibleWorldBounds();
+    const minTileX = Math.floor(bounds.minX / TILE_SIZE) - 1;
+    const maxTileX = Math.ceil(bounds.maxX / TILE_SIZE) + 1;
+    const minTileY = Math.floor(bounds.minY / TILE_SIZE) - 1;
+    const maxTileY = Math.ceil(bounds.maxY / TILE_SIZE) + 1;
+
+    for (let ty = minTileY; ty <= maxTileY; ty++) {
+      for (let tx = minTileX; tx <= maxTileX; tx++) {
+        if (world.getTile(tx, ty) === TileType.LAVA) {
+          const ls = camera.worldToScreen((tx + 0.5) * TILE_SIZE, (ty + 0.5) * TILE_SIZE);
+          const lRad = (28 + Math.sin(performance.now() * 0.005 + tx) * 3) * camera.zoom;
+          const lGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 2, ls.sx, ls.sy, lRad);
+          lGrad.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+          lGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.6)');
+          lGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          lCtx.fillStyle = lGrad;
+          lCtx.beginPath();
+          lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
+          lCtx.fill();
+        }
+      }
+    }
 
     // Bomb Sparks / Light
     for (const b of bombs) {

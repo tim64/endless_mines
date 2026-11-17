@@ -8,6 +8,8 @@ export class World {
   private noiseCave: SimplexNoise;
   private noiseOre: SimplexNoise;
   private noiseTerrain: SimplexNoise;
+  private noiseLava: SimplexNoise;
+  private lavaTimer: number = 0;
   public seed: number;
 
   constructor(seed: number = 4242) {
@@ -15,6 +17,7 @@ export class World {
     this.noiseCave = new SimplexNoise(seed);
     this.noiseOre = new SimplexNoise(seed + 101);
     this.noiseTerrain = new SimplexNoise(seed + 202);
+    this.noiseLava = new SimplexNoise(seed + 303);
   }
 
   private getChunkKey(cx: number, cy: number): string {
@@ -53,6 +56,17 @@ export class World {
         // Natural winding caves and caverns
         if (caveVal > 0.48 || caveWorm < 0.07) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
+          continue;
+        }
+
+        // Lava Pockets: deep underground, strictly sealed inside solid rock
+        const lavaNoise = this.noiseLava.noise2D(wx * 0.08, wy * 0.08);
+        const isFarEnough = dist > 14;
+        const isSealedInsideRock = caveVal < 0.32 && caveWorm > 0.16;
+
+        if (isFarEnough && isSealedInsideRock && lavaNoise > 0.62) {
+          chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.LAVA;
+          chunk.setLavaLevel(lx, ly, 5); // Source lava block
           continue;
         }
 
@@ -158,7 +172,85 @@ export class World {
 
   public isSolid(wx: number, wy: number): boolean {
     const tile = this.getTile(wx, wy);
-    return tile !== TileType.AIR;
+    return tile !== TileType.AIR && tile !== TileType.LAVA;
+  }
+
+  public getLavaLevel(wx: number, wy: number): number {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return this.getChunk(cx, cy).getLavaLevel(lx, ly);
+  }
+
+  public setLavaLevel(wx: number, wy: number, level: number) {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    this.getChunk(cx, cy).setLavaLevel(lx, ly, level);
+  }
+
+  /**
+   * Viscous lava spread simulation.
+   * If a lava pocket is breached by mining (adjacent to AIR), it oozes outward.
+   */
+  public updateLava(
+    dt: number,
+    centerTileX: number,
+    centerTileY: number,
+    onFlow?: (wx: number, wy: number) => void
+  ) {
+    this.lavaTimer += dt;
+    // Tick lava flow every 0.45s (molten, viscous liquid)
+    if (this.lavaTimer < 0.45) return;
+    this.lavaTimer = 0;
+
+    const centerCx = Math.floor(centerTileX / CHUNK_SIZE);
+    const centerCy = Math.floor(centerTileY / CHUNK_SIZE);
+
+    const pendingFlows: { x: number; y: number; level: number }[] = [];
+
+    // Check active chunks around the player
+    for (let ccy = centerCy - 2; ccy <= centerCy + 2; ccy++) {
+      for (let ccx = centerCx - 2; ccx <= centerCx + 2; ccx++) {
+        const chunk = this.getChunk(ccx, ccy);
+        for (let ly = 0; ly < CHUNK_SIZE; ly++) {
+          for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+            const tile = chunk.getTile(lx, ly);
+            if (tile === TileType.LAVA) {
+              const level = chunk.getLavaLevel(lx, ly) || 5;
+              if (level > 1) {
+                const wx = ccx * CHUNK_SIZE + lx;
+                const wy = ccy * CHUNK_SIZE + ly;
+
+                const neighbors = [
+                  { x: wx + 1, y: wy },
+                  { x: wx - 1, y: wy },
+                  { x: wx, y: wy + 1 },
+                  { x: wx, y: wy - 1 },
+                ];
+
+                for (const n of neighbors) {
+                  if (this.getTile(n.x, n.y) === TileType.AIR) {
+                    pendingFlows.push({ x: n.x, y: n.y, level: level - 1 });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Apply queued flows
+    for (const f of pendingFlows) {
+      if (this.getTile(f.x, f.y) === TileType.AIR) {
+        this.setTile(f.x, f.y, TileType.LAVA);
+        this.setLavaLevel(f.x, f.y, f.level);
+        if (onFlow) onFlow(f.x, f.y);
+      }
+    }
   }
 
   // Bomb explosion
@@ -180,6 +272,13 @@ export class World {
         if (d <= radius) {
           const tile = this.getTile(x, y);
           if (tile === TileType.AIR || tile === TileType.BEDROCK) continue;
+
+          if (tile === TileType.LAVA) {
+            // Explosive shockwave cools and hardens molten lava into solid granite/crust!
+            this.setTile(x, y, TileType.HARD_STONE);
+            brokenTiles.push({ x, y, tile });
+            continue;
+          }
 
           const def = TILE_DEFINITIONS[tile];
           // Explosive power decreases with distance

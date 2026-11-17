@@ -105,6 +105,17 @@ export const TILE_DEFINITIONS: Record<TileType, TileDef> = {
     blastResistance: 999,
     drops: [],
   },
+  [TileType.LAVA]: {
+    id: TileType.LAVA,
+    name: 'Лава',
+    color: '#e63900',
+    edgeColor: '#a81c00',
+    detailColor: '#ffb703',
+    maxHp: Infinity,
+    minToolTier: 999,
+    blastResistance: 999,
+    drops: [],
+  },
 };
 
 export const PICKAXE_TIERS: PickaxeInfo[] = [

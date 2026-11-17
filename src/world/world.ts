@@ -1,5 +1,5 @@
 import { CHUNK_SIZE, TILE_DEFINITIONS, TILE_SIZE } from '../constants';
-import { TileType, TileDef, TileDrop, Torch } from '../types';
+import { TileType, TileDef, TileDrop, Torch, SavedChunkDelta } from '../types';
 import { Chunk } from './chunk';
 import { SimplexNoise } from '../utils/noise';
 import { tryStampRoom } from './rooms';
@@ -33,6 +33,7 @@ export class World {
   private liquidTimer: number = 0;
   private pendingLava: Map<string, PendingLiquid> = new Map();
   private pendingWater: Map<string, PendingLiquid> = new Map();
+  public savedDeltas: Map<string, SavedChunkDelta> = new Map();
   public seed: number;
 
   constructor(seed: number = 4242) {
@@ -164,6 +165,22 @@ export class World {
 
     // Stamp procedural template room (Starter Bunker at (0, 0), or random rare template rooms)
     tryStampRoom(chunk, cx, cy, this.seed);
+
+    chunk.isInitialGeneration = false;
+
+    // Apply any saved deltas if they exist for this chunk
+    const key = this.getChunkKey(cx, cy);
+    if (this.savedDeltas.has(key)) {
+      const delta = this.savedDeltas.get(key)!;
+      for (const [lx, ly, tileType] of delta.changes) {
+        chunk.tiles[ly * CHUNK_SIZE + lx] = tileType;
+        chunk.modifiedTiles.set(ly * CHUNK_SIZE + lx, tileType);
+        if (tileType !== TileType.LAVA) chunk.lavaLevels[ly * CHUNK_SIZE + lx] = 0;
+        if (tileType !== TileType.WATER) chunk.waterLevels[ly * CHUNK_SIZE + lx] = 0;
+      }
+      chunk.torches = delta.torches.map(t => ({ lx: t.lx, ly: t.ly, flickerOffset: t.flickerOffset }));
+      chunk.isModified = true;
+    }
 
     return chunk;
   }
@@ -563,5 +580,59 @@ export class World {
     }
 
     return result;
+  }
+
+  public getSavedDeltas(): SavedChunkDelta[] {
+    const deltasMap = new Map<string, SavedChunkDelta>(this.savedDeltas);
+    for (const [key, chunk] of this.chunks.entries()) {
+      if (chunk.isModified || chunk.modifiedTiles.size > 0) {
+        const changes: [number, number, number][] = [];
+        for (const [idx, type] of chunk.modifiedTiles.entries()) {
+          const lx = idx % CHUNK_SIZE;
+          const ly = Math.floor(idx / CHUNK_SIZE);
+          changes.push([lx, ly, type]);
+        }
+        deltasMap.set(key, {
+          cx: chunk.cx,
+          cy: chunk.cy,
+          changes,
+          torches: chunk.torches.map(t => ({ lx: t.lx, ly: t.ly, flickerOffset: t.flickerOffset })),
+        });
+      }
+    }
+    return Array.from(deltasMap.values());
+  }
+
+  public applySavedDeltas(deltas: SavedChunkDelta[]) {
+    this.savedDeltas.clear();
+    for (const delta of deltas) {
+      const key = this.getChunkKey(delta.cx, delta.cy);
+      this.savedDeltas.set(key, delta);
+      const chunk = this.chunks.get(key);
+      if (chunk) {
+        for (const [lx, ly, tileType] of delta.changes) {
+          chunk.tiles[ly * CHUNK_SIZE + lx] = tileType;
+          chunk.modifiedTiles.set(ly * CHUNK_SIZE + lx, tileType);
+          if (tileType !== TileType.LAVA) chunk.lavaLevels[ly * CHUNK_SIZE + lx] = 0;
+          if (tileType !== TileType.WATER) chunk.waterLevels[ly * CHUNK_SIZE + lx] = 0;
+        }
+        chunk.torches = delta.torches.map(t => ({ lx: t.lx, ly: t.ly, flickerOffset: t.flickerOffset }));
+        chunk.isModified = true;
+      }
+    }
+  }
+
+  public reset(newSeed: number) {
+    this.seed = newSeed;
+    this.noiseCave = new SimplexNoise(newSeed);
+    this.noiseOre = new SimplexNoise(newSeed + 101);
+    this.noiseTerrain = new SimplexNoise(newSeed + 202);
+    this.noiseLava = new SimplexNoise(newSeed + 303);
+    this.noiseWater = new SimplexNoise(newSeed + 404);
+    this.chunks.clear();
+    this.savedDeltas.clear();
+    this.pendingLava.clear();
+    this.pendingWater.clear();
+    this.liquidTimer = 0;
   }
 }

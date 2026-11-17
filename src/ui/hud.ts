@@ -30,6 +30,15 @@ export class HUD {
   private pickaxeCostEl!: HTMLElement;
   private lightCostEl!: HTMLElement;
 
+  // Save / World Elements
+  private btnSaveGame!: HTMLButtonElement;
+  private btnExportSave!: HTMLButtonElement;
+  private btnImportSave!: HTMLButtonElement;
+  private inputImportSave!: HTMLInputElement;
+  private btnResetGame!: HTMLButtonElement;
+  private saveStatusEl!: HTMLElement;
+  private statusTimer: number | null = null;
+
   // Hotbar
   private slotBombEl!: HTMLElement;
   private slotTorchEl!: HTMLElement;
@@ -38,6 +47,10 @@ export class HUD {
 
   public activeItem: 'bomb' | 'torch' = 'bomb';
   public onItemSelect?: (item: 'bomb' | 'torch') => void;
+  public onSave?: () => void;
+  public onExport?: () => void;
+  public onImport?: (file: File) => void;
+  public onReset?: () => void;
 
   constructor(player: Player) {
     this.player = player;
@@ -70,6 +83,13 @@ export class HUD {
     this.btnUpgradeLight = document.getElementById('btn-upgrade-light') as HTMLButtonElement;
     this.pickaxeCostEl = document.getElementById('pickaxe-cost')!;
     this.lightCostEl = document.getElementById('light-cost')!;
+
+    this.btnSaveGame = document.getElementById('btn-save-game') as HTMLButtonElement;
+    this.btnExportSave = document.getElementById('btn-export-save') as HTMLButtonElement;
+    this.btnImportSave = document.getElementById('btn-import-save') as HTMLButtonElement;
+    this.inputImportSave = document.getElementById('input-import-save') as HTMLInputElement;
+    this.btnResetGame = document.getElementById('btn-reset-game') as HTMLButtonElement;
+    this.saveStatusEl = document.getElementById('save-status')!;
 
     this.slotBombEl = document.getElementById('slot-bomb')!;
     this.slotTorchEl = document.getElementById('slot-torch')!;
@@ -157,6 +177,50 @@ export class HUD {
         this.update();
       }
     });
+
+    // 5. Save & World Management
+    this.btnSaveGame.addEventListener('click', () => {
+      if (this.onSave) this.onSave();
+    });
+
+    this.btnExportSave.addEventListener('click', () => {
+      if (this.onExport) this.onExport();
+    });
+
+    this.btnImportSave.addEventListener('click', () => {
+      this.inputImportSave.value = '';
+      this.inputImportSave.click();
+    });
+
+    this.inputImportSave.addEventListener('change', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        const file = target.files[0];
+        if (this.onImport) this.onImport(file);
+      }
+    });
+
+    this.btnResetGame.addEventListener('click', () => {
+      const ok = confirm('Сбросить весь прогресс, удалить сохранение и начать заново в новом мире?');
+      if (ok && this.onReset) {
+        this.onReset();
+      }
+    });
+  }
+
+  public showSaveStatus(msg: string, isError: boolean = false) {
+    if (!this.saveStatusEl) return;
+    this.saveStatusEl.innerText = msg;
+    this.saveStatusEl.style.color = isError ? '#bf616a' : '#a3be8c';
+    this.saveStatusEl.style.opacity = '1';
+
+    if (this.statusTimer !== null) {
+      window.clearTimeout(this.statusTimer);
+    }
+    this.statusTimer = window.setTimeout(() => {
+      this.saveStatusEl.style.opacity = '0';
+      this.statusTimer = null;
+    }, 3500);
   }
 
   public setActiveItem(item: 'bomb' | 'torch') {

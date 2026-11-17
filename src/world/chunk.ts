@@ -9,6 +9,8 @@ export class Chunk {
   public lavaLevels: Uint8Array;
   public waterLevels: Uint8Array;
   public torches: { lx: number; ly: number; flickerOffset: number }[] = [];
+  public modifiedTiles: Map<number, number> = new Map();
+  public isInitialGeneration: boolean = true;
   public isModified: boolean = false;
 
   constructor(cx: number, cy: number) {
@@ -45,7 +47,11 @@ export class Chunk {
     if (type !== TileType.WATER) {
       this.waterLevels[idx] = 0;
     }
-    this.isModified = true;
+
+    if (!this.isInitialGeneration) {
+      this.modifiedTiles.set(idx, type);
+      this.isModified = true;
+    }
   }
 
   public addTorch(lx: number, ly: number, flickerOffset: number = Math.random() * 100) {
@@ -111,8 +117,7 @@ export class Chunk {
     this.isModified = true;
 
     if (this.damage[idx] >= def.maxHp) {
-      this.tiles[idx] = TileType.AIR;
-      this.damage[idx] = 0;
+      this.setTile(lx, ly, TileType.AIR);
       return { broken: true, tile };
     }
 

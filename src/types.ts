@@ -76,3 +76,28 @@ export interface FloatingText {
   life: number;
   maxLife: number;
 }
+
+export interface SavedChunkDelta {
+  cx: number;
+  cy: number;
+  changes: [number, number, number][]; // [lx, ly, tileType]
+  torches: { lx: number; ly: number; flickerOffset: number }[];
+}
+
+export interface GameSaveData {
+  version: 1;
+  timestamp: number;
+  player: {
+    tileX: number;
+    tileY: number;
+    hp: number;
+    pickaxeTier: number;
+    bombs: number;
+    lightRadius: number;
+    inventory: Inventory;
+  };
+  world: {
+    seed: number;
+    modifiedChunks: SavedChunkDelta[];
+  };
+}

@@ -1,5 +1,5 @@
 import { TILE_SIZE, TILE_DEFINITIONS } from './constants';
-import { TileType } from './types';
+import { TileType, GameSaveData } from './types';
 import { World } from './world/world';
 import { Player } from './entities/player';
 import { Bomb } from './entities/bomb';
@@ -7,6 +7,7 @@ import { Camera } from './renderer/camera';
 import { Renderer } from './renderer/renderer';
 import { HUD } from './ui/hud';
 import { SoundManager } from './audio';
+import { SaveManager } from './save';
 
 // Setup Canvas and Engine
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
@@ -20,6 +21,87 @@ const renderer = new Renderer(canvas);
 const hud = new HUD(player);
 
 const bombs: Bomb[] = [];
+
+// Apply loaded game save data
+function applyGameSave(data: GameSaveData) {
+  world.reset(data.world.seed);
+  world.applySavedDeltas(data.world.modifiedChunks);
+
+  player.tileX = data.player.tileX;
+  player.tileY = data.player.tileY;
+  player.targetTileX = data.player.tileX;
+  player.targetTileY = data.player.tileY;
+  player.isMoving = false;
+  player.moveProgress = 0;
+  player.hp = data.player.hp;
+  player.pickaxeTier = data.player.pickaxeTier;
+  player.bombs = data.player.bombs;
+  player.lightRadius = data.player.lightRadius;
+  player.inventory = { ...data.player.inventory };
+  player.updatePixelCoords();
+
+  bombs.length = 0;
+  camera.follow(player.x, player.y, 1.0);
+  hud.update();
+}
+
+// Initial Boot: Check LocalStorage for saved game
+const initialSave = SaveManager.loadFromLocalStorage();
+if (initialSave) {
+  applyGameSave(initialSave);
+  hud.showSaveStatus('💾 Прогресс загружен из сохранения');
+} else {
+  hud.showSaveStatus('✨ Новый мир сгенерирован');
+}
+
+// Save / Load / Reset Callbacks
+hud.onSave = () => {
+  const ok = SaveManager.saveToLocalStorage(player, world);
+  if (ok) {
+    hud.showSaveStatus('💾 Игра сохранена в браузере!');
+  } else {
+    hud.showSaveStatus('❌ Ошибка сохранения', true);
+  }
+};
+
+hud.onExport = () => {
+  SaveManager.exportToFile(player, world);
+  hud.showSaveStatus('📥 Файл сохранения выгружен!');
+};
+
+hud.onImport = async (file: File) => {
+  try {
+    const data = await SaveManager.importFromFile(file);
+    applyGameSave(data);
+    SaveManager.saveToLocalStorage(player, world);
+    hud.showSaveStatus('✅ Мир успешно импортирован!');
+  } catch (err: any) {
+    alert(err?.message || 'Ошибка импорта файла');
+    hud.showSaveStatus('❌ Ошибка импорта файла', true);
+  }
+};
+
+hud.onReset = () => {
+  SaveManager.clearLocalStorage();
+  const newSeed = Math.floor(Math.random() * 100000);
+  world.reset(newSeed);
+  player.reset(8, 8);
+  bombs.length = 0;
+  camera.follow(player.x, player.y, 1.0);
+  hud.update();
+  SaveManager.saveToLocalStorage(player, world);
+  hud.showSaveStatus('🔄 Мир сброшен, новая игра!');
+};
+
+// Periodic auto-save every 15 seconds
+setInterval(() => {
+  SaveManager.saveToLocalStorage(player, world);
+}, 15000);
+
+// Auto-save before tab close/reload
+window.addEventListener('beforeunload', () => {
+  SaveManager.saveToLocalStorage(player, world);
+});
 
 // Screen shake effect
 let screenShake = 0;

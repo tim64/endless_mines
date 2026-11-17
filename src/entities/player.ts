@@ -154,4 +154,32 @@ export class Player {
   public addResource(res: keyof Inventory, count: number) {
     this.inventory[res] = (this.inventory[res] || 0) + count;
   }
+
+  public reset(startTileX: number = 8, startTileY: number = 8) {
+    this.tileX = startTileX;
+    this.tileY = startTileY;
+    this.targetTileX = startTileX;
+    this.targetTileY = startTileY;
+    this.isMoving = false;
+    this.moveProgress = 0.0;
+    this.hp = 100;
+    this.maxHp = 100;
+    this.pickaxeTier = 1;
+    this.bombs = 3;
+    this.lightRadius = 105;
+    this.facingX = 0;
+    this.facingY = 1;
+    this.inventory = {
+      dirt: 0,
+      stone: 0,
+      coal: 0,
+      iron: 0,
+      sulfur: 0,
+      gems: 0,
+      obsidian: 0,
+      gold: 0,
+      torches: 5,
+    };
+    this.updatePixelCoords();
+  }
 }

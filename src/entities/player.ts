@@ -28,6 +28,7 @@ export class Player {
     iron: 0,
     sulfur: 0,
     gems: 0,
+    obsidian: 0,
   };
 
   public pickaxeTier: number = 1; // starts with Wooden Pickaxe

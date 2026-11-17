@@ -116,6 +116,31 @@ export const TILE_DEFINITIONS: Record<TileType, TileDef> = {
     blastResistance: 999,
     drops: [],
   },
+  [TileType.WATER]: {
+    id: TileType.WATER,
+    name: 'Вода',
+    color: '#1d70b8',
+    edgeColor: '#10497d',
+    detailColor: '#5cb3ff',
+    maxHp: Infinity,
+    minToolTier: 999,
+    blastResistance: 999,
+    drops: [],
+  },
+  [TileType.OBSIDIAN]: {
+    id: TileType.OBSIDIAN,
+    name: 'Обсидиан',
+    color: '#1f162e',
+    edgeColor: '#120c1d',
+    detailColor: '#8b5cf6',
+    maxHp: 12.0,
+    minToolTier: 3,
+    blastResistance: 85,
+    drops: [
+      { resource: 'obsidian', count: 1, chance: 1.0 },
+      { resource: 'gems', count: 1, chance: 0.35 },
+    ],
+  },
 };
 
 export const PICKAXE_TIERS: PickaxeInfo[] = [

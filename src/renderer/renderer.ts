@@ -187,6 +187,51 @@ export class Renderer {
           continue;
         }
 
+        if (tile === TileType.WATER) {
+          const time = performance.now() * 0.003;
+          const ripple = Math.sin(time * 2 + tx * 1.8 + ty * 2.1);
+
+          // Deep fluid water
+          ctx.fillStyle = ripple > 0.2 ? '#227cc9' : '#175c96';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+          // Lighter water surface wave
+          ctx.fillStyle = '#4da6ff';
+          const waveY = py + 3 + Math.floor((ripple + 1) * 4);
+          ctx.fillRect(px + 1, Math.min(py + TILE_SIZE - 2, waveY), TILE_SIZE - 2, 2);
+
+          // Water foam bubble
+          ctx.fillStyle = '#b3d9ff';
+          const bx = 3 + Math.floor((Math.sin(time * 2 + tx * 2) + 1) * 4);
+          const by = 3 + Math.floor((Math.cos(time * 2 + ty * 2) + 1) * 4);
+          ctx.fillRect(px + bx, py + by, 2, 2);
+
+          // Small splash particle chance
+          if (Math.random() < 0.015) {
+            this.addParticle(px + Math.random() * TILE_SIZE, py + Math.random() * TILE_SIZE, '#80c0ff', 1, 15);
+          }
+          continue;
+        }
+
+        if (tile === TileType.OBSIDIAN) {
+          // Deep glossy volcanic glass
+          ctx.fillStyle = '#161124';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+          // Bevel edge
+          ctx.fillStyle = '#0d0917';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+
+          // Crystal purple fractures & glints
+          ctx.fillStyle = '#8b5cf6';
+          ctx.fillRect(px + 4, py + 4, 3, 3);
+          ctx.fillRect(px + 10, py + 9, 2, 2);
+          ctx.fillStyle = '#c084fc';
+          ctx.fillRect(px + 5, py + 5, 1, 1);
+          continue;
+        }
+
         const def = TILE_DEFINITIONS[tile];
 
         // Base tile fill
@@ -256,6 +301,33 @@ export class Renderer {
       ctx.lineTo(px + 14, py + 10);
       ctx.moveTo(px + 7, py + 6);
       ctx.lineTo(px + 9, py + 2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 1.6 Render Pending Water Warnings (Swirling blue water trickles before breach!)
+    const pendingWater = world.getPendingWater();
+    for (const pw of pendingWater) {
+      const px = pw.x * TILE_SIZE;
+      const py = pw.y * TILE_SIZE;
+      const progress = 1.0 - pw.timer / pw.maxTimer;
+
+      ctx.save();
+      // Flashing cyan/blue warning fill
+      const pulse = Math.sin(performance.now() * 0.02) * 0.15;
+      ctx.fillStyle = `rgba(0, 140, 255, ${0.25 + progress * 0.35 + pulse})`;
+      ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+      // Water trickle fissures
+      ctx.strokeStyle = `rgba(130, 210, 255, ${0.6 + progress * 0.4})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px + 3, py + 4);
+      ctx.lineTo(px + 8, py + 9);
+      ctx.lineTo(px + 13, py + 6);
+      ctx.moveTo(px + 8, py + 9);
+      ctx.lineTo(px + 9, py + 14);
       ctx.stroke();
 
       ctx.restore();
@@ -421,6 +493,16 @@ export class Renderer {
           lCtx.beginPath();
           lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
           lCtx.fill();
+        } else if (world.getTile(tx, ty) === TileType.WATER) {
+          const ls = camera.worldToScreen((tx + 0.5) * TILE_SIZE, (ty + 0.5) * TILE_SIZE);
+          const lRad = 16 * camera.zoom;
+          const lGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 1, ls.sx, ls.sy, lRad);
+          lGrad.addColorStop(0, 'rgba(0, 0, 0, 0.35)');
+          lGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          lCtx.fillStyle = lGrad;
+          lCtx.beginPath();
+          lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
+          lCtx.fill();
         }
       }
     }
@@ -431,6 +513,19 @@ export class Renderer {
       const lRad = 20 * camera.zoom;
       const lGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 1, ls.sx, ls.sy, lRad);
       lGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+      lGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      lCtx.fillStyle = lGrad;
+      lCtx.beginPath();
+      lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
+      lCtx.fill();
+    }
+
+    // Pending Water Warning Glow
+    for (const pw of world.getPendingWater()) {
+      const ls = camera.worldToScreen((pw.x + 0.5) * TILE_SIZE, (pw.y + 0.5) * TILE_SIZE);
+      const lRad = 18 * camera.zoom;
+      const lGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 1, ls.sx, ls.sy, lRad);
+      lGrad.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
       lGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       lCtx.fillStyle = lGrad;
       lCtx.beginPath();

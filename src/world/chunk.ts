@@ -7,6 +7,7 @@ export class Chunk {
   public tiles: Uint8Array;
   public damage: Float32Array;
   public lavaLevels: Uint8Array;
+  public waterLevels: Uint8Array;
   public isModified: boolean = false;
 
   constructor(cx: number, cy: number) {
@@ -15,6 +16,7 @@ export class Chunk {
     this.tiles = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
     this.damage = new Float32Array(CHUNK_SIZE * CHUNK_SIZE);
     this.lavaLevels = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
+    this.waterLevels = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
   }
 
   private getIndex(lx: number, ly: number): number {
@@ -36,6 +38,9 @@ export class Chunk {
     if (type !== TileType.LAVA) {
       this.lavaLevels[idx] = 0;
     }
+    if (type !== TileType.WATER) {
+      this.waterLevels[idx] = 0;
+    }
     this.isModified = true;
   }
 
@@ -47,6 +52,17 @@ export class Chunk {
   public setLavaLevel(lx: number, ly: number, level: number) {
     if (lx < 0 || lx >= CHUNK_SIZE || ly < 0 || ly >= CHUNK_SIZE) return;
     this.lavaLevels[this.getIndex(lx, ly)] = level;
+    this.isModified = true;
+  }
+
+  public getWaterLevel(lx: number, ly: number): number {
+    if (lx < 0 || lx >= CHUNK_SIZE || ly < 0 || ly >= CHUNK_SIZE) return 0;
+    return this.waterLevels[this.getIndex(lx, ly)];
+  }
+
+  public setWaterLevel(lx: number, ly: number, level: number) {
+    if (lx < 0 || lx >= CHUNK_SIZE || ly < 0 || ly >= CHUNK_SIZE) return;
+    this.waterLevels[this.getIndex(lx, ly)] = level;
     this.isModified = true;
   }
 

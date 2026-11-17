@@ -17,6 +17,7 @@ export class HUD {
   private resIronEl!: HTMLElement;
   private resSulfurEl!: HTMLElement;
   private resGemsEl!: HTMLElement;
+  private resObsidianEl!: HTMLElement;
 
   private btnCraftBomb!: HTMLButtonElement;
   private btnUpgradePickaxe!: HTMLButtonElement;
@@ -44,6 +45,7 @@ export class HUD {
     this.resIronEl = document.getElementById('res-iron')!;
     this.resSulfurEl = document.getElementById('res-sulfur')!;
     this.resGemsEl = document.getElementById('res-gems')!;
+    this.resObsidianEl = document.getElementById('res-obsidian')!;
 
     this.btnCraftBomb = document.getElementById('btn-craft-bomb') as HTMLButtonElement;
     this.btnUpgradePickaxe = document.getElementById('btn-upgrade-pickaxe') as HTMLButtonElement;
@@ -75,8 +77,9 @@ export class HUD {
       } else if (nextTier === 3 && this.player.inventory.iron >= 12) {
         this.player.inventory.iron -= 12;
         this.player.pickaxeTier = 3;
-      } else if (nextTier === 4 && this.player.inventory.gems >= 4) {
+      } else if (nextTier === 4 && this.player.inventory.gems >= 4 && this.player.inventory.obsidian >= 2) {
         this.player.inventory.gems -= 4;
+        this.player.inventory.obsidian -= 2;
         this.player.pickaxeTier = 4;
       }
       this.update();
@@ -127,6 +130,7 @@ export class HUD {
     this.resIronEl.innerText = `${p.inventory.iron}`;
     this.resSulfurEl.innerText = `${p.inventory.sulfur}`;
     this.resGemsEl.innerText = `${p.inventory.gems}`;
+    this.resObsidianEl.innerText = `${p.inventory.obsidian}`;
 
     // Crafting availability
     this.btnCraftBomb.disabled = !(p.inventory.coal >= 1 && p.inventory.sulfur >= 1);
@@ -143,8 +147,8 @@ export class HUD {
       this.pickaxeCostEl.innerText = '12 Железа';
       this.btnUpgradePickaxe.disabled = p.inventory.iron < 12;
     } else if (nextTier === 4) {
-      this.pickaxeCostEl.innerText = '4 Самоцвета';
-      this.btnUpgradePickaxe.disabled = p.inventory.gems < 4;
+      this.pickaxeCostEl.innerText = '4 Самоцвета + 2 Обсидиана';
+      this.btnUpgradePickaxe.disabled = !(p.inventory.gems >= 4 && p.inventory.obsidian >= 2);
     }
 
     this.btnCraftMedkit.disabled = !(p.hp < p.maxHp && p.inventory.dirt >= 5 && p.inventory.coal >= 5);

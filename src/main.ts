@@ -213,7 +213,7 @@ function gameLoop(now: number) {
   // 6. Mine Block if Target Chosen
   if (targetMiningX !== null && targetMiningY !== null) {
     const tile = world.getTile(targetMiningX, targetMiningY);
-    if (tile !== TileType.AIR && tile !== TileType.BEDROCK && tile !== TileType.LAVA) {
+    if (tile !== TileType.AIR && tile !== TileType.BEDROCK && tile !== TileType.LAVA && tile !== TileType.WATER) {
       const pick = player.getPickaxe();
       const res = world.damageTile(targetMiningX, targetMiningY, pick.power * dt, pick.tier);
 
@@ -285,38 +285,66 @@ function gameLoop(now: number) {
     }
   }
 
-  // 8. Update Lava Simulation & Flows
-  world.updateLava(
-    dt,
-    player.tileX,
-    player.tileY,
-    // onFlow (when lava actually breaks through and fills tile)
-    (wx, wy) => {
+  // 8. Update Liquids Simulation (Lava & Water Flows + Obsidian Reaction)
+  world.updateLiquids(dt, player.tileX, player.tileY, {
+    // Lava Callbacks
+    onLavaFlow: (wx, wy) => {
       audio.playLavaSizzle();
       const lpx = (wx + 0.5) * TILE_SIZE;
       const lpy = (wy + 0.5) * TILE_SIZE;
       renderer.addParticle(lpx, lpy, '#ff6600', 8, 45);
       renderer.addParticle(lpx, lpy, '#555555', 4, 25);
     },
-    // onTelegraph (initial warning when wall is breached)
-    (wx, wy) => {
+    onLavaTelegraph: (wx, wy) => {
       audio.playLavaSizzle();
       const lpx = (wx + 0.5) * TILE_SIZE;
       const lpy = (wy + 0.5) * TILE_SIZE;
       renderer.addParticle(lpx, lpy, '#ffcc00', 6, 35);
       renderer.addParticle(lpx, lpy, '#888888', 4, 20);
     },
-    // onSimmer (hissing embers and steam during the 0.65s reaction countdown)
-    (wx, wy) => {
+    onLavaSimmer: (wx, wy) => {
       if (Math.random() < 0.2) {
         const lpx = (wx + 0.5) * TILE_SIZE;
         const lpy = (wy + 0.5) * TILE_SIZE;
         renderer.addParticle(lpx + (Math.random() - 0.5) * 8, lpy + (Math.random() - 0.5) * 8, '#ff9900', 1, 25);
       }
-    }
-  );
+    },
+    // Water Callbacks
+    onWaterFlow: (wx, wy) => {
+      audio.playWaterSplash();
+      const lpx = (wx + 0.5) * TILE_SIZE;
+      const lpy = (wy + 0.5) * TILE_SIZE;
+      renderer.addParticle(lpx, lpy, '#4da6ff', 8, 35);
+      renderer.addParticle(lpx, lpy, '#b3d9ff', 4, 20);
+    },
+    onWaterTelegraph: (wx, wy) => {
+      audio.playWaterSplash();
+      const lpx = (wx + 0.5) * TILE_SIZE;
+      const lpy = (wy + 0.5) * TILE_SIZE;
+      renderer.addParticle(lpx, lpy, '#80c0ff', 6, 25);
+    },
+    onWaterSimmer: (wx, wy) => {
+      if (Math.random() < 0.15) {
+        const lpx = (wx + 0.5) * TILE_SIZE;
+        const lpy = (wy + 0.5) * TILE_SIZE;
+        renderer.addParticle(lpx + (Math.random() - 0.5) * 8, lpy + (Math.random() - 0.5) * 8, '#b3d9ff', 1, 15);
+      }
+    },
+    // Steam Reaction (Lava + Water -> Obsidian Formation!)
+    onSteamReaction: (wx, wy) => {
+      audio.playSteamHiss();
+      const px = (wx + 0.5) * TILE_SIZE;
+      const py = (wy + 0.5) * TILE_SIZE;
+      // Dense rising cloud of hot steam
+      for (let i = 0; i < 22; i++) {
+        renderer.addParticle(px + (Math.random() - 0.5) * 12, py + (Math.random() - 0.5) * 12, '#f1f5f9', 2.5, 45);
+        renderer.addParticle(px + (Math.random() - 0.5) * 12, py + (Math.random() - 0.5) * 12, '#94a3b8', 1.5, 25);
+      }
+      renderer.addFloatingText(px, py - 8, 'ОБСИДИАН!', '#a855f7');
+    },
+  });
 
-  // 9. Player Lava Hazard Check
+  // 9. Player Liquid Hazard Check
   const currentTile = world.getTile(player.tileX, player.tileY);
   if (currentTile === TileType.LAVA) {
     lavaBurnTimer += dt;
@@ -331,6 +359,11 @@ function gameLoop(now: number) {
       lavaBurnTimer = 0;
     }
     hud.update();
+  } else if (currentTile === TileType.WATER) {
+    // Water cools down the player and splashes
+    if (Math.random() < 0.15) {
+      renderer.addParticle(player.x, player.y + 4, '#80c0ff', 1, 15);
+    }
   }
 
   // 10. Update Effects & Particles

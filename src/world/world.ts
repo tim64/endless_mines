@@ -3,12 +3,23 @@ import { TileType, TileDef, TileDrop } from '../types';
 import { Chunk } from './chunk';
 import { SimplexNoise } from '../utils/noise';
 
-export interface PendingLava {
+export interface PendingLiquid {
   x: number;
   y: number;
+  type: TileType.LAVA | TileType.WATER;
   level: number;
   timer: number;
   maxTimer: number;
+}
+
+export interface LiquidCallbacks {
+  onLavaFlow?: (wx: number, wy: number) => void;
+  onLavaTelegraph?: (wx: number, wy: number) => void;
+  onLavaSimmer?: (wx: number, wy: number) => void;
+  onWaterFlow?: (wx: number, wy: number) => void;
+  onWaterTelegraph?: (wx: number, wy: number) => void;
+  onWaterSimmer?: (wx: number, wy: number) => void;
+  onSteamReaction?: (wx: number, wy: number) => void;
 }
 
 export class World {
@@ -17,8 +28,10 @@ export class World {
   private noiseOre: SimplexNoise;
   private noiseTerrain: SimplexNoise;
   private noiseLava: SimplexNoise;
-  private lavaTimer: number = 0;
-  private pendingLava: Map<string, PendingLava> = new Map();
+  private noiseWater: SimplexNoise;
+  private liquidTimer: number = 0;
+  private pendingLava: Map<string, PendingLiquid> = new Map();
+  private pendingWater: Map<string, PendingLiquid> = new Map();
   public seed: number;
 
   constructor(seed: number = 4242) {
@@ -27,6 +40,7 @@ export class World {
     this.noiseOre = new SimplexNoise(seed + 101);
     this.noiseTerrain = new SimplexNoise(seed + 202);
     this.noiseLava = new SimplexNoise(seed + 303);
+    this.noiseWater = new SimplexNoise(seed + 404);
   }
 
   private getChunkKey(cx: number, cy: number): string {
@@ -76,6 +90,16 @@ export class World {
         if (isFarEnough && isSealedInsideRock && lavaNoise > 0.62) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.LAVA;
           chunk.setLavaLevel(lx, ly, 5); // Source lava block
+          continue;
+        }
+
+        // Water Pockets: subterranean aquifers sealed inside solid rock
+        const waterNoise = this.noiseWater.noise2D(wx * 0.08, wy * 0.08);
+        const isWaterFarEnough = dist > 6;
+
+        if (isWaterFarEnough && isSealedInsideRock && waterNoise > 0.62) {
+          chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.WATER;
+          chunk.setWaterLevel(lx, ly, 6); // Source water block
           continue;
         }
 
@@ -181,7 +205,7 @@ export class World {
 
   public isSolid(wx: number, wy: number): boolean {
     const tile = this.getTile(wx, wy);
-    return tile !== TileType.AIR && tile !== TileType.LAVA;
+    return tile !== TileType.AIR && tile !== TileType.LAVA && tile !== TileType.WATER;
   }
 
   public getLavaLevel(wx: number, wy: number): number {
@@ -200,59 +224,111 @@ export class World {
     this.getChunk(cx, cy).setLavaLevel(lx, ly, level);
   }
 
-  public getPendingLava(): PendingLava[] {
+  public getWaterLevel(wx: number, wy: number): number {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return this.getChunk(cx, cy).getWaterLevel(lx, ly);
+  }
+
+  public setWaterLevel(wx: number, wy: number, level: number) {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cy = Math.floor(wy / CHUNK_SIZE);
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const ly = ((wy % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    this.getChunk(cx, cy).setWaterLevel(lx, ly, level);
+  }
+
+  public getPendingLava(): PendingLiquid[] {
     return Array.from(this.pendingLava.values());
   }
 
+  public getPendingWater(): PendingLiquid[] {
+    return Array.from(this.pendingWater.values());
+  }
+
   /**
-   * Viscous lava spread simulation with a telegraphed warning delay (~0.65s).
-   * Gives the player time to react and step back before molten lava actually spills into the tile!
+   * Fluid simulation for both Lava and Water with telegraphed warning delay (~0.65s).
+   * When Lava and Water meet, they instantly solidify into ultra-durable Obsidian!
    */
-  public updateLava(
+  public updateLiquids(
     dt: number,
     centerTileX: number,
     centerTileY: number,
-    onFlow?: (wx: number, wy: number) => void,
-    onTelegraph?: (wx: number, wy: number) => void,
-    onSimmer?: (wx: number, wy: number) => void
+    callbacks: LiquidCallbacks
   ) {
-    // 1. Process pending countdowns every frame
+    // 1. Process Pending Lava Countdowns
     for (const [key, p] of this.pendingLava) {
       p.timer -= dt;
-      if (onSimmer) onSimmer(p.x, p.y);
+      if (callbacks.onLavaSimmer) callbacks.onLavaSimmer(p.x, p.y);
 
       if (p.timer <= 0) {
         this.pendingLava.delete(key);
-        // Turn into lava only if still empty (not walled off)
-        if (this.getTile(p.x, p.y) === TileType.AIR) {
+        const curTile = this.getTile(p.x, p.y);
+
+        // If target tile already has water, or has an adjacent water neighbor: OBSIDIAN!
+        if (curTile === TileType.WATER || this.hasAdjacentTile(p.x, p.y, TileType.WATER)) {
+          this.setTile(p.x, p.y, TileType.OBSIDIAN);
+          if (callbacks.onSteamReaction) callbacks.onSteamReaction(p.x, p.y);
+        } else if (curTile === TileType.AIR) {
           this.setTile(p.x, p.y, TileType.LAVA);
           this.setLavaLevel(p.x, p.y, p.level);
-          if (onFlow) onFlow(p.x, p.y);
+          if (callbacks.onLavaFlow) callbacks.onLavaFlow(p.x, p.y);
         }
       }
     }
 
-    // 2. Scan active chunks periodically for new breaches
-    this.lavaTimer += dt;
-    if (this.lavaTimer < 0.2) return;
-    this.lavaTimer = 0;
+    // 2. Process Pending Water Countdowns
+    for (const [key, p] of this.pendingWater) {
+      p.timer -= dt;
+      if (callbacks.onWaterSimmer) callbacks.onWaterSimmer(p.x, p.y);
+
+      if (p.timer <= 0) {
+        this.pendingWater.delete(key);
+        const curTile = this.getTile(p.x, p.y);
+
+        // If target tile has lava, or has an adjacent lava neighbor: OBSIDIAN!
+        if (curTile === TileType.LAVA || this.hasAdjacentTile(p.x, p.y, TileType.LAVA)) {
+          this.setTile(p.x, p.y, TileType.OBSIDIAN);
+          if (callbacks.onSteamReaction) callbacks.onSteamReaction(p.x, p.y);
+        } else if (curTile === TileType.AIR) {
+          this.setTile(p.x, p.y, TileType.WATER);
+          this.setWaterLevel(p.x, p.y, p.level);
+          if (callbacks.onWaterFlow) callbacks.onWaterFlow(p.x, p.y);
+        }
+      }
+    }
+
+    // 3. Scan Active Chunks for Breaches & Immediate Lava/Water Collision
+    this.liquidTimer += dt;
+    if (this.liquidTimer < 0.2) return;
+    this.liquidTimer = 0;
 
     const centerCx = Math.floor(centerTileX / CHUNK_SIZE);
     const centerCy = Math.floor(centerTileY / CHUNK_SIZE);
 
-    // Check active chunks around the player
     for (let ccy = centerCy - 2; ccy <= centerCy + 2; ccy++) {
       for (let ccx = centerCx - 2; ccx <= centerCx + 2; ccx++) {
         const chunk = this.getChunk(ccx, ccy);
         for (let ly = 0; ly < CHUNK_SIZE; ly++) {
           for (let lx = 0; lx < CHUNK_SIZE; lx++) {
             const tile = chunk.getTile(lx, ly);
+            const wx = ccx * CHUNK_SIZE + lx;
+            const wy = ccy * CHUNK_SIZE + ly;
+
+            // Direct Contact Reaction: Lava next to Water -> turns into Obsidian
+            if (tile === TileType.LAVA && this.hasAdjacentTile(wx, wy, TileType.WATER)) {
+              this.setTile(wx, wy, TileType.OBSIDIAN);
+              this.pendingLava.delete(`${wx},${wy}`);
+              if (callbacks.onSteamReaction) callbacks.onSteamReaction(wx, wy);
+              continue;
+            }
+
+            // Lava Spreading
             if (tile === TileType.LAVA) {
               const level = chunk.getLavaLevel(lx, ly) || 5;
               if (level > 1) {
-                const wx = ccx * CHUNK_SIZE + lx;
-                const wy = ccy * CHUNK_SIZE + ly;
-
                 const neighbors = [
                   { x: wx + 1, y: wy },
                   { x: wx - 1, y: wy },
@@ -261,17 +337,68 @@ export class World {
                 ];
 
                 for (const n of neighbors) {
+                  const nTile = this.getTile(n.x, n.y);
                   const nKey = `${n.x},${n.y}`;
-                  if (this.getTile(n.x, n.y) === TileType.AIR && !this.pendingLava.has(nKey)) {
-                    // ~0.65s warning delay so player can react and step back!
-                    this.pendingLava.set(nKey, {
-                      x: n.x,
-                      y: n.y,
-                      level: level - 1,
-                      timer: 0.65,
-                      maxTimer: 0.65,
-                    });
-                    if (onTelegraph) onTelegraph(n.x, n.y);
+
+                  if (nTile === TileType.WATER) {
+                    this.setTile(n.x, n.y, TileType.OBSIDIAN);
+                    if (callbacks.onSteamReaction) callbacks.onSteamReaction(n.x, n.y);
+                  } else if (nTile === TileType.AIR && !this.pendingLava.has(nKey)) {
+                    // If water is also trying to enter here: instant obsidian!
+                    if (this.pendingWater.has(nKey)) {
+                      this.pendingWater.delete(nKey);
+                      this.setTile(n.x, n.y, TileType.OBSIDIAN);
+                      if (callbacks.onSteamReaction) callbacks.onSteamReaction(n.x, n.y);
+                    } else {
+                      this.pendingLava.set(nKey, {
+                        x: n.x,
+                        y: n.y,
+                        type: TileType.LAVA,
+                        level: level - 1,
+                        timer: 0.65,
+                        maxTimer: 0.65,
+                      });
+                      if (callbacks.onLavaTelegraph) callbacks.onLavaTelegraph(n.x, n.y);
+                    }
+                  }
+                }
+              }
+            }
+
+            // Water Spreading
+            else if (tile === TileType.WATER) {
+              const level = chunk.getWaterLevel(lx, ly) || 6;
+              if (level > 1) {
+                const neighbors = [
+                  { x: wx + 1, y: wy },
+                  { x: wx - 1, y: wy },
+                  { x: wx, y: wy + 1 },
+                  { x: wx, y: wy - 1 },
+                ];
+
+                for (const n of neighbors) {
+                  const nTile = this.getTile(n.x, n.y);
+                  const nKey = `${n.x},${n.y}`;
+
+                  if (nTile === TileType.LAVA) {
+                    this.setTile(n.x, n.y, TileType.OBSIDIAN);
+                    if (callbacks.onSteamReaction) callbacks.onSteamReaction(n.x, n.y);
+                  } else if (nTile === TileType.AIR && !this.pendingWater.has(nKey)) {
+                    if (this.pendingLava.has(nKey)) {
+                      this.pendingLava.delete(nKey);
+                      this.setTile(n.x, n.y, TileType.OBSIDIAN);
+                      if (callbacks.onSteamReaction) callbacks.onSteamReaction(n.x, n.y);
+                    } else {
+                      this.pendingWater.set(nKey, {
+                        x: n.x,
+                        y: n.y,
+                        type: TileType.WATER,
+                        level: level - 1,
+                        timer: 0.65,
+                        maxTimer: 0.65,
+                      });
+                      if (callbacks.onWaterTelegraph) callbacks.onWaterTelegraph(n.x, n.y);
+                    }
                   }
                 }
               }
@@ -280,6 +407,15 @@ export class World {
         }
       }
     }
+  }
+
+  private hasAdjacentTile(wx: number, wy: number, target: TileType): boolean {
+    return (
+      this.getTile(wx + 1, wy) === target ||
+      this.getTile(wx - 1, wy) === target ||
+      this.getTile(wx, wy + 1) === target ||
+      this.getTile(wx, wy - 1) === target
+    );
   }
 
   // Bomb explosion
@@ -294,6 +430,14 @@ export class World {
       if (Math.hypot(dx, dy) <= radius) {
         this.pendingLava.delete(key);
         this.setTile(p.x, p.y, TileType.HARD_STONE);
+      }
+    }
+    for (const [key, p] of this.pendingWater) {
+      const dx = p.x - centerTileX;
+      const dy = p.y - centerTileY;
+      if (Math.hypot(dx, dy) <= radius) {
+        this.pendingWater.delete(key);
+        this.setTile(p.x, p.y, TileType.AIR);
       }
     }
 

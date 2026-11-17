@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mine Bombers Retro</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0d0e12;
+      font-family: 'Courier New', Courier, monospace;
+      color: #eaeaea;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #181924 0%, #08080c 100%);
+    }
+    canvas#game-canvas {
+      display: block;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      border: 2px solid #2e3440;
+    }
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .panel {
+      background: rgba(15, 17, 26, 0.85);
+      border: 1px solid #434c5e;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+    .panel-title {
+      font-weight: bold;
+      color: #88c0d0;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .resource-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 2px 0;
+    }
+    .res-badge {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+    #controls-hint {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      font-size: 11px;
+      color: #d8dee9;
+      background: rgba(15, 17, 26, 0.8);
+      border: 1px solid #3b4252;
+      border-radius: 4px;
+      padding: 8px 12px;
+      pointer-events: none;
+      line-height: 1.5;
+    }
+    #crafting-panel {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 250px;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    .craft-btn {
+      width: 100%;
+      background: #2e3440;
+      color: #eceff4;
+      border: 1px solid #4c566a;
+      border-radius: 3px;
+      padding: 6px 8px;
+      margin-top: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .craft-btn:hover:not(:disabled) {
+      background: #434c5e;
+      border-color: #88c0d0;
+    }
+    .craft-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    
+    <div id="hud">
+      <div class="panel">
+        <div class="panel-title">⛏️ Шахтер</div>
+        <div>HP: <span id="hud-hp" style="color: #a3be8c; font-weight: bold;">100</span> / 100</div>
+        <div>Кирка: <span id="hud-pickaxe" style="color: #ebcb8b; font-weight: bold;">Деревянная (ур. 1)</span></div>
+        <div>Бомбы: <span id="hud-bombs" style="color: #bf616a; font-weight: bold;">3</span> шт. (клавиша [E] / ПКМ)</div>
+        <div>Глубина: <span id="hud-depth" style="color: #81a1c1;">0 м</span> | Координаты: <span id="hud-coords">0, 0</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">🎒 Ресурсы</div>
+        <div class="resource-row"><span class="res-badge" style="background: #a3be8c;"></span> Земля: <span id="res-dirt">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #7a7f8d;"></span> Камень: <span id="res-stone">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #2b2b2b; border: 1px solid #555;"></span> Уголь: <span id="res-coal">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #ebcb8b;"></span> Железо: <span id="res-iron">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #eedd44;"></span> Сера: <span id="res-sulfur">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #5e81ac;"></span> Рубины/Самоцветы: <span id="res-gems">0</span></div>
+      </div>
+    </div>
+
+    <div id="crafting-panel" class="panel">
+      <div class="panel-title">🔨 Мастерская / Крафт</div>
+      <button id="btn-craft-bomb" class="craft-btn">
+        <span>💣 Собрать бомбу</span>
+        <span style="color: #d08770;">1 Уголь + 1 Сера</span>
+      </button>
+      <button id="btn-upgrade-pickaxe" class="craft-btn">
+        <span>⛏️ Улучшить кирку</span>
+        <span id="pickaxe-cost" style="color: #88c0d0;">10 Камня</span>
+      </button>
+      <button id="btn-craft-medkit" class="craft-btn">
+        <span>❤️ Аптечка (+50 HP)</span>
+        <span style="color: #a3be8c;">5 Земли + 5 Угля</span>
+      </button>
+      <button id="btn-upgrade-light" class="craft-btn">
+        <span>💡 Улучшить фонарь</span>
+        <span id="light-cost" style="color: #ebcb8b;">5 Угля + 2 Железа</span>
+      </button>
+    </div>
+
+    <div id="controls-hint">
+      <b>Управление:</b><br />
+      [W, A, S, D] или [Стрелки] — движение<br />
+      [ЛКМ] по блоку рядом — копать породу<br />
+      [Пробел] — копать в сторону взгляда<br />
+      [E] или [ПКМ] — установить бомбу (таймер 2.5 сек)<br />
+      [Колесо мыши] — зум камеры
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

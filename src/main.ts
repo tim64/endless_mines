@@ -252,23 +252,25 @@ function tryUsePortal(): boolean {
     }
   }
 
-  if (portalTile === TileType.PORTAL_DOWN) {
-    if (world.currentLayer === 0) {
-      // Transition from Winter Tundra to The Mines
-      const { targetX, targetY } = world.switchLayer(1, 'down');
-      player.tileX = targetX;
-      player.tileY = targetY;
-      player.targetTileX = targetX;
-      player.targetTileY = targetY;
-      player.updatePixelCoords();
-      bombs.length = 0;
-      camera.follow(player.x, player.y, 1.0);
-      audio.playPortalTeleport();
-      hud.showSaveStatus('⛏️ Вы спустились в Подземные Шахты!');
-      hud.update(world.getBiome(player.tileX, player.tileY));
-      return true;
-    } else if (world.currentLayer === 1) {
-      // Transition from The Mines to The Sinister Ruins
+  // Layer 0: Winter Tundra -> Always descend to Mines
+  if (world.currentLayer === 0) {
+    const { targetX, targetY } = world.switchLayer(1, 'down');
+    player.tileX = targetX;
+    player.tileY = targetY;
+    player.targetTileX = targetX;
+    player.targetTileY = targetY;
+    player.updatePixelCoords();
+    bombs.length = 0;
+    camera.follow(player.x, player.y, 1.0);
+    audio.playPortalTeleport();
+    hud.showSaveStatus('⛏️ Вы спустились в Подземные Шахты!');
+    hud.update(world.getBiome(player.tileX, player.tileY));
+    return true;
+  }
+
+  // Layer 1: The Mines -> Descend to Ruins or Ascend to Winter Tundra
+  if (world.currentLayer === 1) {
+    if (portalTile === TileType.PORTAL_DOWN) {
       const { targetX, targetY } = world.switchLayer(2, 'down');
       player.tileX = targetX;
       player.tileY = targetY;
@@ -281,10 +283,7 @@ function tryUsePortal(): boolean {
       hud.showSaveStatus('👁️ Вы вошли в Зловещие Руины Бездны!');
       hud.update(world.getBiome(player.tileX, player.tileY));
       return true;
-    }
-  } else if (portalTile === TileType.PORTAL_UP) {
-    if (world.currentLayer === 1) {
-      // Ascent from The Mines back to Winter Tundra
+    } else {
       const { targetX, targetY } = world.switchLayer(0, 'up');
       player.tileX = targetX;
       player.tileY = targetY;
@@ -297,21 +296,23 @@ function tryUsePortal(): boolean {
       hud.showSaveStatus('❄️ Вы поднялись в Зимнюю Тундру!');
       hud.update(world.getBiome(player.tileX, player.tileY));
       return true;
-    } else if (world.currentLayer === 2) {
-      // Ascent from Sinister Ruins back to The Mines
-      const { targetX, targetY } = world.switchLayer(1, 'up');
-      player.tileX = targetX;
-      player.tileY = targetY;
-      player.targetTileX = targetX;
-      player.targetTileY = targetY;
-      player.updatePixelCoords();
-      bombs.length = 0;
-      camera.follow(player.x, player.y, 1.0);
-      audio.playPortalTeleport();
-      hud.showSaveStatus('⛏️ Вы вернулись в Шахты!');
-      hud.update(world.getBiome(player.tileX, player.tileY));
-      return true;
     }
+  }
+
+  // Layer 2: The Sinister Ruins -> Ascend to Mines
+  if (world.currentLayer === 2) {
+    const { targetX, targetY } = world.switchLayer(1, 'up');
+    player.tileX = targetX;
+    player.tileY = targetY;
+    player.targetTileX = targetX;
+    player.targetTileY = targetY;
+    player.updatePixelCoords();
+    bombs.length = 0;
+    camera.follow(player.x, player.y, 1.0);
+    audio.playPortalTeleport();
+    hud.showSaveStatus('⛏️ Вы вернулись в Шахты!');
+    hud.update(world.getBiome(player.tileX, player.tileY));
+    return true;
   }
 
   return false;
@@ -608,12 +609,21 @@ function gameLoop(now: number) {
     if (portalPromptTimer >= 0.8) {
       let portalLabel = '[E] Войти во врата';
       let portalColor = '#38bdf8';
-      if (activePortal === TileType.PORTAL_DOWN) {
-        portalLabel = world.currentLayer === 0 ? '[E] Спуститься в Шахты' : '[E] Спуститься в Руины';
-        portalColor = world.currentLayer === 0 ? '#38bdf8' : '#f43f5e';
-      } else if (activePortal === TileType.PORTAL_UP) {
-        portalLabel = world.currentLayer === 1 ? '[E] Подняться в Тундру' : '[E] Подняться в Шахты';
-        portalColor = world.currentLayer === 1 ? '#bae6fd' : '#fbbf24';
+
+      if (world.currentLayer === 0) {
+        portalLabel = '[E] Спуститься в Шахты';
+        portalColor = '#38bdf8';
+      } else if (world.currentLayer === 1) {
+        if (activePortal === TileType.PORTAL_DOWN) {
+          portalLabel = '[E] Спуститься в Руины';
+          portalColor = '#f43f5e';
+        } else {
+          portalLabel = '[E] Подняться в Тундру';
+          portalColor = '#bae6fd';
+        }
+      } else if (world.currentLayer === 2) {
+        portalLabel = '[E] Подняться в Шахты';
+        portalColor = '#fbbf24';
       }
       renderer.addFloatingText(player.x, player.y - 14, portalLabel, portalColor);
       portalPromptTimer = 0;

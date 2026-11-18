@@ -545,6 +545,19 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
   },
 ];
 
+const TEMPLATES_BY_ID = new Map<number, RoomTemplate>();
+for (const tmpl of ROOM_TEMPLATES) {
+  TEMPLATES_BY_ID.set(tmpl.id, tmpl);
+}
+
+export function getRoomTemplate(id: number): RoomTemplate {
+  const tmpl = TEMPLATES_BY_ID.get(id);
+  if (!tmpl) {
+    throw new Error(`Room template with id ${id} not found`);
+  }
+  return tmpl;
+}
+
 /**
  * Stamps a procedural template room into the chunk.
  * Chunk (0, 0) receives the arrival/starter base for the respective layer.
@@ -556,22 +569,22 @@ export function tryStampRoom(chunk: Chunk, cx: number, cy: number, seed: number)
   // Origin chunk (0, 0) in each layer has its fixed arrival/starter base:
   if (cx === 0 && cy === 0) {
     if (layer === 0) {
-      ROOM_TEMPLATES[0].build(chunk, 3, 3, cx, cy); // Winter Starter Bunker
+      getRoomTemplate(0).build(chunk, 3, 3, cx, cy); // Winter Starter Bunker
     } else if (layer === 1) {
-      ROOM_TEMPLATES[10].build(chunk, 3, 3, cx, cy); // Mines Arrival Base with Ascent Portal
+      getRoomTemplate(10).build(chunk, 3, 3, cx, cy); // Mines Arrival Base with Ascent Portal
     } else if (layer === 2) {
-      ROOM_TEMPLATES[11].build(chunk, 3, 3, cx, cy); // Ruins Arrival Base with Ascent Portal
+      getRoomTemplate(11).build(chunk, 3, 3, cx, cy); // Ruins Arrival Base with Ascent Portal
     }
     return;
   }
 
   // Fixed Descent Gate placement close to origin:
   if (layer === 0 && cx === 1 && cy === 1) {
-    ROOM_TEMPLATES[12].build(chunk, 3, 3, cx, cy); // Descent to Mines
+    getRoomTemplate(12).build(chunk, 3, 3, cx, cy); // Descent to Mines (PORTAL_DOWN)
     return;
   }
   if (layer === 1 && cx === 2 && cy === 2) {
-    ROOM_TEMPLATES[13].build(chunk, 3, 3, cx, cy); // Descent to Ruins
+    getRoomTemplate(13).build(chunk, 3, 3, cx, cy); // Descent to Ruins (PORTAL_DOWN)
     return;
   }
 
@@ -586,30 +599,30 @@ export function tryStampRoom(chunk: Chunk, cx: number, cy: number, seed: number)
   // Additional Descent Gates scattered in distant chunks (~4% chance)
   if (roll < 0.04 && dist > 4) {
     if (layer === 0) {
-      ROOM_TEMPLATES[12].build(chunk, 3, 3, cx, cy);
+      getRoomTemplate(12).build(chunk, 3, 3, cx, cy);
       return;
     } else if (layer === 1) {
-      ROOM_TEMPLATES[13].build(chunk, 3, 3, cx, cy);
+      getRoomTemplate(13).build(chunk, 3, 3, cx, cy);
       return;
     }
   }
 
   // ~14% chance for a chunk to feature a special template room matching this layer
   if (roll < 0.14) {
-    let roomType: number;
+    let roomId: number;
     if (layer === 0) {
-      // Winter layer: rooms 6, 7, 2
+      // Winter layer rooms: Glacial Grotto (6), Frozen Outpost (7), Diamond Shrine (2)
       const winterChoices = [6, 7, 2];
-      roomType = winterChoices[Math.floor(roll * 1000) % winterChoices.length];
+      roomId = winterChoices[Math.floor(roll * 1000) % winterChoices.length];
     } else if (layer === 2) {
-      // Sinister ruins layer: rooms 8, 9, 1
+      // Sinister ruins layer: Crypt of Ancients (8), Void Sanctum (9), Square Vault (1)
       const ruinsChoices = [8, 9, 1];
-      roomType = ruinsChoices[Math.floor(roll * 1000) % ruinsChoices.length];
+      roomId = ruinsChoices[Math.floor(roll * 1000) % ruinsChoices.length];
     } else {
-      // Mines layer: rooms 1, 2, 3, 4, 5
+      // Mines layer: Square Vault (1), Diamond Shrine (2), Mining Station (3), Magma Crucible (4), Subterranean Spring (5)
       const minesChoices = [1, 2, 3, 4, 5];
-      roomType = minesChoices[Math.floor(roll * 1000) % minesChoices.length];
+      roomId = minesChoices[Math.floor(roll * 1000) % minesChoices.length];
     }
-    ROOM_TEMPLATES[roomType].build(chunk, 3, 3, cx, cy);
+    getRoomTemplate(roomId).build(chunk, 3, 3, cx, cy);
   }
 }

@@ -135,15 +135,7 @@ export class World {
             continue;
           }
 
-          // Subterranean frozen aquifers
-          const waterNoise = this.noiseWater.noise2D(nx * 0.08, ny * 0.08);
-          if (waterNoise > 0.62 && caveVal < 0.32) {
-            chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.WATER;
-            chunk.setWaterLevel(lx, ly, 6);
-            continue;
-          }
-
-          // Pure Winter Terrain
+          // Pure Winter Terrain (полностью без воды)
           let baseTile: TileType = TileType.SNOW;
           if (terrainNoise > 0.32) baseTile = TileType.PACKED_ICE;
           else if (terrainNoise > 0.05) baseTile = TileType.ICE;
@@ -232,13 +224,13 @@ export class World {
           continue;
         }
 
-        // Water Aquifers sealed inside rock
+        // Water Aquifers sealed inside rock (редкие изолированные жилы)
         const waterNoise = this.noiseWater.noise2D(nx * 0.08, ny * 0.08);
-        const isWaterFarEnough = dist > 6;
+        const isWaterFarEnough = dist > 18;
 
-        if (isWaterFarEnough && isSealedInsideRock && waterNoise > 0.62) {
+        if (isWaterFarEnough && isSealedInsideRock && waterNoise > 0.74) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.WATER;
-          chunk.setWaterLevel(lx, ly, 6);
+          chunk.setWaterLevel(lx, ly, 4);
           continue;
         }
 

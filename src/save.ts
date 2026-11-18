@@ -15,6 +15,7 @@ export class SaveManager {
       version: 1,
       timestamp: Date.now(),
       player: {
+        layer: world.currentLayer,
         tileX: player.tileX,
         tileY: player.tileY,
         hp: player.hp,

@@ -4,6 +4,7 @@ import { TileType } from '../types';
 export class Chunk {
   public cx: number;
   public cy: number;
+  public layer: number;
   public tiles: Uint8Array;
   public damage: Float32Array;
   public lavaLevels: Uint8Array;
@@ -13,9 +14,10 @@ export class Chunk {
   public isInitialGeneration: boolean = true;
   public isModified: boolean = false;
 
-  constructor(cx: number, cy: number) {
+  constructor(cx: number, cy: number, layer: number = 0) {
     this.cx = cx;
     this.cy = cy;
+    this.layer = layer;
     this.tiles = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);
     this.damage = new Float32Array(CHUNK_SIZE * CHUNK_SIZE);
     this.lavaLevels = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE);

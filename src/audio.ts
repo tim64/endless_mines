@@ -324,4 +324,28 @@ export class SoundManager {
     osc.start();
     osc.stop(ctx.currentTime + 0.35);
   }
+
+  // Cosmic whoosh sound when traveling through portal gate between layers
+  public playPortalTeleport() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(160, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(720, ctx.currentTime + 0.25);
+    osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.5);
+
+    gain.gain.setValueAtTime(0.01, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  }
 }

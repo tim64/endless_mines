@@ -308,6 +308,64 @@ export class Renderer {
           ctx.fillRect(px + 5, py + 4, 6, 7);
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(px + 7, py + 6, 2, 2);
+        } else if (tile === TileType.PORTAL_DOWN) {
+          // Descent Gateway: stone runic pedestal with swirling blue/cyan vortex
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#1e293b';
+          ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+          const time = performance.now() * 0.005;
+
+          // Swirling blue vortex
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath();
+          ctx.arc(px + 8, py + 8, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(px + 8 + Math.cos(time * 3) * 2, py + 8 + Math.sin(time * 3) * 2, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(px + 7, py + 7, 2, 2);
+
+          // Runic pedestal corners
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(px, py, 3, 3);
+          ctx.fillRect(px + TILE_SIZE - 3, py, 3, 3);
+          ctx.fillRect(px, py + TILE_SIZE - 3, 3, 3);
+          ctx.fillRect(px + TILE_SIZE - 3, py + TILE_SIZE - 3, 3, 3);
+        } else if (tile === TileType.PORTAL_UP) {
+          // Ascent Gateway: ancient gold/purple pedestal with swirling ascension beacon
+          ctx.fillStyle = '#1e1b4b';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#2e1065';
+          ctx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+          const time = performance.now() * 0.005;
+
+          // Swirling violet/gold ascension beacon
+          ctx.fillStyle = '#9333ea';
+          ctx.beginPath();
+          ctx.arc(px + 8, py + 8, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.arc(px + 8 + Math.cos(time * 3 + Math.PI) * 2, py + 8 + Math.sin(time * 3 + Math.PI) * 2, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(px + 7, py + 7, 2, 2);
+
+          // Golden corner runes
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillRect(px, py, 3, 3);
+          ctx.fillRect(px + TILE_SIZE - 3, py, 3, 3);
+          ctx.fillRect(px, py + TILE_SIZE - 3, 3, 3);
+          ctx.fillRect(px + TILE_SIZE - 3, py + TILE_SIZE - 3, 3, 3);
         } else {
           const def = TILE_DEFINITIONS[tile];
 
@@ -534,7 +592,7 @@ export class Renderer {
     ctx.restore();
 
     // 5. Atmospheric Layer Particles (Snow in Winter, Void Embers in Ruins)
-    if (player.tileY < 0 && Math.random() < 0.4) {
+    if (world.currentLayer === 0 && Math.random() < 0.4) {
       const bounds = camera.getVisibleWorldBounds();
       const sx = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
       const sy = bounds.minY - 5;
@@ -548,7 +606,7 @@ export class Renderer {
         life: 0,
         maxLife: 2.2,
       });
-    } else if (player.tileY >= 80 && Math.random() < 0.25) {
+    } else if (world.currentLayer === 2 && Math.random() < 0.25) {
       const bounds = camera.getVisibleWorldBounds();
       const sx = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
       const sy = bounds.maxY + 5;
@@ -599,12 +657,11 @@ export class Renderer {
     const ch = this.canvas.height;
 
     // Ambient darkness depends on world layer (biome):
-    let ambientStyle = 'rgba(5, 6, 9, 0.92)'; // Default underground darkness
-    if (player.tileY < 0) {
+    let ambientStyle = 'rgba(5, 6, 9, 0.92)'; // Default underground darkness (The Mines)
+    if (world.currentLayer === 0) {
       // Winter world: frosty daylight / pale cold twilight
-      const depthRatio = Math.min(1.0, Math.abs(player.tileY) / 10);
-      ambientStyle = `rgba(18, 28, 48, ${0.40 - depthRatio * 0.15})`; // bright, soft cold daylight!
-    } else if (player.tileY >= 80) {
+      ambientStyle = 'rgba(18, 28, 48, 0.28)'; // bright, soft cold daylight!
+    } else if (world.currentLayer === 2) {
       // Sinister ruins: deep eerie purple-crimson abyss darkness
       ambientStyle = 'rgba(15, 4, 18, 0.94)';
     }
@@ -672,6 +729,17 @@ export class Renderer {
           lCtx.fillStyle = vGrad;
           lCtx.beginPath();
           lCtx.arc(ls.sx, ls.sy, vRad, 0, Math.PI * 2);
+          lCtx.fill();
+        } else if (world.getTile(tx, ty) === TileType.PORTAL_DOWN || world.getTile(tx, ty) === TileType.PORTAL_UP) {
+          const ls = camera.worldToScreen((tx + 0.5) * TILE_SIZE, (ty + 0.5) * TILE_SIZE);
+          const pRad = (32 + Math.sin(performance.now() * 0.006 + tx) * 5) * camera.zoom;
+          const pGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 2, ls.sx, ls.sy, pRad);
+          pGrad.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+          pGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.6)');
+          pGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          lCtx.fillStyle = pGrad;
+          lCtx.beginPath();
+          lCtx.arc(ls.sx, ls.sy, pRad, 0, Math.PI * 2);
           lCtx.fill();
         }
       }

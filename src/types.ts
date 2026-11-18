@@ -23,6 +23,15 @@ export enum TileType {
   CURSED_STONE = 19,
   BONE_BLOCK = 20,
   VOID_CRYSTAL = 21,
+  // Врата перехода между слоями
+  PORTAL_DOWN = 22, // Спуск в следующий слой
+  PORTAL_UP = 23,   // Подъем в предыдущий слой
+}
+
+export enum WorldLayer {
+  WINTER = 0,
+  MINES = 1,
+  RUINS = 2,
 }
 
 export type ResourceType =
@@ -111,6 +120,7 @@ export interface FloatingText {
 }
 
 export interface SavedChunkDelta {
+  layer: number;
   cx: number;
   cy: number;
   changes: [number, number, number][]; // [lx, ly, tileType]
@@ -121,6 +131,7 @@ export interface GameSaveData {
   version: 1;
   timestamp: number;
   player: {
+    layer: number;
     tileX: number;
     tileY: number;
     hp: number;

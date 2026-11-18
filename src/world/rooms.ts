@@ -9,27 +9,24 @@ export interface RoomTemplate {
 
 export const ROOM_TEMPLATES: RoomTemplate[] = [
   // -------------------------------------------------------------
-  // Template 0: Стартовый бункер шахтера (Miner's Starter Bunker)
-  // 11x11 space centered in chunk (0, 0) around player spawn (8, 8)
+  // Template 0: Зимний стартовый бункер (Winter Starter Bunker - Layer 0)
+  // 11x11 safe bunker centered in chunk (0, 0) at player spawn (8, 8)
   // -------------------------------------------------------------
   {
     id: 0,
-    name: 'Стартовая база шахтера',
-    build: (chunk, startLx, startLy) => {
-      // 11x11 area: lx from 3 to 13, ly from 3 to 13
+    name: 'Зимний стартовый бункер',
+    build: (chunk) => {
       for (let ly = 3; ly <= 13; ly++) {
         for (let lx = 3; lx <= 13; lx++) {
           const isBorder = lx === 3 || lx === 13 || ly === 3 || ly === 13;
-
           if (isBorder) {
-            // Soft dirt exits in cardinal directions (easy to dig through into dungeon)
+            // Soft snow exits in cardinal directions (easy to dig through into tundra)
             const isExit =
               (lx === 8 && (ly === 3 || ly === 13)) ||
               (ly === 8 && (lx === 3 || lx === 13));
 
-            chunk.setTile(lx, ly, isExit ? TileType.DIRT : TileType.HARD_STONE);
+            chunk.setTile(lx, ly, isExit ? TileType.SNOW : TileType.PACKED_ICE);
           } else {
-            // Room floor
             chunk.setTile(lx, ly, TileType.AIR);
           }
         }
@@ -41,11 +38,161 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
       chunk.addTorch(5, 11, 50);
       chunk.addTorch(11, 11, 75);
 
-      // Starter gift: 2 Gold deposits and 2 Coal deposits in corners
-      chunk.setTile(4, 4, TileType.GOLD);
-      chunk.setTile(12, 12, TileType.GOLD);
+      // Starter gifts: 2 Silver deposits and 2 Coal deposits in corners
+      chunk.setTile(4, 4, TileType.SILVER);
+      chunk.setTile(12, 12, TileType.SILVER);
       chunk.setTile(12, 4, TileType.COAL);
       chunk.setTile(4, 12, TileType.COAL);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 10: Шахтерский плацдарм с подъемом (Mines Arrival - Layer 1, 0,0)
+  // -------------------------------------------------------------
+  {
+    id: 10,
+    name: 'Шахтерский плацдарм',
+    build: (chunk) => {
+      for (let ly = 3; ly <= 13; ly++) {
+        for (let lx = 3; lx <= 13; lx++) {
+          const isBorder = lx === 3 || lx === 13 || ly === 3 || ly === 13;
+          if (isBorder) {
+            const isExit =
+              (lx === 8 && (ly === 3 || ly === 13)) ||
+              (ly === 8 && (lx === 3 || lx === 13));
+            chunk.setTile(lx, ly, isExit ? TileType.DIRT : TileType.HARD_STONE);
+          } else {
+            chunk.setTile(lx, ly, TileType.AIR);
+          }
+        }
+      }
+
+      // Center Ascent Portal to Winter Tundra!
+      chunk.setTile(8, 8, TileType.PORTAL_UP);
+
+      // Torches around portal
+      chunk.addTorch(6, 8, 0);
+      chunk.addTorch(10, 8, 25);
+      chunk.addTorch(8, 6, 50);
+      chunk.addTorch(8, 10, 75);
+
+      // Starter gifts for Mines
+      chunk.setTile(4, 4, TileType.IRON);
+      chunk.setTile(12, 12, TileType.IRON);
+      chunk.setTile(12, 4, TileType.GOLD);
+      chunk.setTile(4, 12, TileType.COAL);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 11: Аванпост Бездны (Ruins Arrival - Layer 2, 0,0)
+  // -------------------------------------------------------------
+  {
+    id: 11,
+    name: 'Аванпост Бездны',
+    build: (chunk) => {
+      for (let ly = 3; ly <= 13; ly++) {
+        for (let lx = 3; lx <= 13; lx++) {
+          const isBorder = lx === 3 || lx === 13 || ly === 3 || ly === 13;
+          if (isBorder) {
+            const isExit =
+              (lx === 8 && (ly === 3 || ly === 13)) ||
+              (ly === 8 && (lx === 3 || lx === 13));
+            chunk.setTile(lx, ly, isExit ? TileType.BONE_BLOCK : TileType.RUIN_BRICK);
+          } else {
+            chunk.setTile(lx, ly, TileType.AIR);
+          }
+        }
+      }
+
+      // Center Ascent Portal back to Mines!
+      chunk.setTile(8, 8, TileType.PORTAL_UP);
+
+      // 4 Obsidian Columns
+      chunk.setTile(5, 5, TileType.OBSIDIAN);
+      chunk.setTile(11, 5, TileType.OBSIDIAN);
+      chunk.setTile(5, 11, TileType.OBSIDIAN);
+      chunk.setTile(11, 11, TileType.OBSIDIAN);
+
+      // Ancient Torches
+      chunk.addTorch(8, 6, 10);
+      chunk.addTorch(8, 10, 60);
+
+      // Void crystals & Cursed Gold
+      chunk.setTile(4, 4, TileType.VOID_CRYSTAL);
+      chunk.setTile(12, 12, TileType.VOID_CRYSTAL);
+      chunk.setTile(12, 4, TileType.GOLD);
+      chunk.setTile(4, 12, TileType.GOLD);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 12: Врата спуска в Шахты (Descent to Mines Chamber)
+  // -------------------------------------------------------------
+  {
+    id: 12,
+    name: 'Врата спуска в Шахты',
+    build: (chunk) => {
+      for (let ly = 4; ly <= 12; ly++) {
+        for (let lx = 4; lx <= 12; lx++) {
+          const isBorder = lx === 4 || lx === 12 || ly === 4 || ly === 12;
+          if (isBorder) {
+            chunk.setTile(lx, ly, TileType.PACKED_ICE);
+          } else {
+            chunk.setTile(lx, ly, TileType.AIR);
+          }
+        }
+      }
+
+      // Portal to Mines at center
+      chunk.setTile(8, 8, TileType.PORTAL_DOWN);
+
+      // 4 Obsidian corner pillars
+      chunk.setTile(6, 6, TileType.OBSIDIAN);
+      chunk.setTile(10, 6, TileType.OBSIDIAN);
+      chunk.setTile(6, 10, TileType.OBSIDIAN);
+      chunk.setTile(10, 10, TileType.OBSIDIAN);
+
+      chunk.addTorch(8, 5, 0);
+      chunk.addTorch(8, 11, 50);
+
+      chunk.setTile(7, 8, TileType.SILVER);
+      chunk.setTile(9, 8, TileType.SILVER);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 13: Врата в Зловещие Руины (Descent to Ruins Chamber)
+  // -------------------------------------------------------------
+  {
+    id: 13,
+    name: 'Врата в Зловещие Руины',
+    build: (chunk) => {
+      for (let ly = 4; ly <= 12; ly++) {
+        for (let lx = 4; lx <= 12; lx++) {
+          const isBorder = lx === 4 || lx === 12 || ly === 4 || ly === 12;
+          if (isBorder) {
+            chunk.setTile(lx, ly, TileType.HARD_STONE);
+          } else {
+            chunk.setTile(lx, ly, TileType.AIR);
+          }
+        }
+      }
+
+      // Portal to Ruins at center
+      chunk.setTile(8, 8, TileType.PORTAL_DOWN);
+
+      // 4 Obsidian corner pillars
+      chunk.setTile(6, 6, TileType.OBSIDIAN);
+      chunk.setTile(10, 6, TileType.OBSIDIAN);
+      chunk.setTile(6, 10, TileType.OBSIDIAN);
+      chunk.setTile(10, 10, TileType.OBSIDIAN);
+
+      chunk.addTorch(8, 5, 0);
+      chunk.addTorch(8, 11, 50);
+
+      chunk.setTile(7, 8, TileType.GOLD);
+      chunk.setTile(9, 8, TileType.GEM);
     },
   },
 
@@ -400,13 +547,31 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
 
 /**
  * Stamps a procedural template room into the chunk.
- * Chunk (0, 0) always receives the Starter Bunker.
- * Other chunks have a rare (~12%) chance to contain one of the special chambers matching their biome.
+ * Chunk (0, 0) receives the arrival/starter base for the respective layer.
+ * Fixed descent gates are placed close to origin, and other chambers generate procedurally.
  */
 export function tryStampRoom(chunk: Chunk, cx: number, cy: number, seed: number) {
-  // Always spawn Starter Bunker at world origin chunk (0, 0)
+  const layer = chunk.layer ?? 0;
+
+  // Origin chunk (0, 0) in each layer has its fixed arrival/starter base:
   if (cx === 0 && cy === 0) {
-    ROOM_TEMPLATES[0].build(chunk, 3, 3, cx, cy);
+    if (layer === 0) {
+      ROOM_TEMPLATES[0].build(chunk, 3, 3, cx, cy); // Winter Starter Bunker
+    } else if (layer === 1) {
+      ROOM_TEMPLATES[10].build(chunk, 3, 3, cx, cy); // Mines Arrival Base with Ascent Portal
+    } else if (layer === 2) {
+      ROOM_TEMPLATES[11].build(chunk, 3, 3, cx, cy); // Ruins Arrival Base with Ascent Portal
+    }
+    return;
+  }
+
+  // Fixed Descent Gate placement close to origin:
+  if (layer === 0 && cx === 1 && cy === 1) {
+    ROOM_TEMPLATES[12].build(chunk, 3, 3, cx, cy); // Descent to Mines
+    return;
+  }
+  if (layer === 1 && cx === 2 && cy === 2) {
+    ROOM_TEMPLATES[13].build(chunk, 3, 3, cx, cy); // Descent to Ruins
     return;
   }
 
@@ -415,23 +580,35 @@ export function tryStampRoom(chunk: Chunk, cx: number, cy: number, seed: number)
   if (dist < 1.8) return;
 
   // Deterministic pseudo-random roll for this chunk
-  const hash = Math.abs(Math.sin(cx * 37.17 + cy * 59.83 + seed * 0.1) * 43758.5453);
+  const hash = Math.abs(Math.sin(cx * 37.17 + cy * 59.83 + seed * 0.1 + layer * 77.7) * 43758.5453);
   const roll = hash - Math.floor(hash);
 
-  // ~12% chance for a chunk to feature a special template room
-  if (roll < 0.12) {
+  // Additional Descent Gates scattered in distant chunks (~4% chance)
+  if (roll < 0.04 && dist > 4) {
+    if (layer === 0) {
+      ROOM_TEMPLATES[12].build(chunk, 3, 3, cx, cy);
+      return;
+    } else if (layer === 1) {
+      ROOM_TEMPLATES[13].build(chunk, 3, 3, cx, cy);
+      return;
+    }
+  }
+
+  // ~14% chance for a chunk to feature a special template room matching this layer
+  if (roll < 0.14) {
     let roomType: number;
-    if (cy < 0) {
-      // Winter layer: rooms 6, 7 (or 2)
+    if (layer === 0) {
+      // Winter layer: rooms 6, 7, 2
       const winterChoices = [6, 7, 2];
       roomType = winterChoices[Math.floor(roll * 1000) % winterChoices.length];
-    } else if (cy >= 5) {
-      // Sinister ruins layer: rooms 8, 9 (or 1, 4)
-      const ruinsChoices = [8, 9, 1, 4];
+    } else if (layer === 2) {
+      // Sinister ruins layer: rooms 8, 9, 1
+      const ruinsChoices = [8, 9, 1];
       roomType = ruinsChoices[Math.floor(roll * 1000) % ruinsChoices.length];
     } else {
-      // Mines layer: rooms 1..5
-      roomType = 1 + (Math.floor(roll * 1000) % 5);
+      // Mines layer: rooms 1, 2, 3, 4, 5
+      const minesChoices = [1, 2, 3, 4, 5];
+      roomType = minesChoices[Math.floor(roll * 1000) % minesChoices.length];
     }
     ROOM_TEMPLATES[roomType].build(chunk, 3, 3, cx, cy);
   }

@@ -34,6 +34,7 @@ export class World {
   private pendingLava: Map<string, PendingLiquid> = new Map();
   private pendingWater: Map<string, PendingLiquid> = new Map();
   public savedDeltas: Map<string, SavedChunkDelta> = new Map();
+  public currentLayer: number = 0; // 0 = Winter Tundra, 1 = The Mines, 2 = The Sinister Ruins
   public seed: number;
 
   constructor(seed: number = 4242) {
@@ -45,28 +46,53 @@ export class World {
     this.noiseWater = new SimplexNoise(seed + 404);
   }
 
-  private getChunkKey(cx: number, cy: number): string {
-    return `${cx},${cy}`;
+  private getChunkKey(cx: number, cy: number, layer: number = this.currentLayer): string {
+    return `${layer}:${cx},${cy}`;
   }
 
-  public getChunk(cx: number, cy: number): Chunk {
-    const key = this.getChunkKey(cx, cy);
+  public getChunk(cx: number, cy: number, layer: number = this.currentLayer): Chunk {
+    const key = this.getChunkKey(cx, cy, layer);
     let chunk = this.chunks.get(key);
     if (!chunk) {
-      chunk = this.generateChunk(cx, cy);
+      chunk = this.generateChunk(cx, cy, layer);
       this.chunks.set(key, chunk);
     }
     return chunk;
   }
 
-  public getBiome(wx: number, wy: number): BiomeType {
-    if (wy < 0) return 'winter';
-    if (wy >= 80) return 'ruins';
+  public getBiome(_wx?: number, _wy?: number): BiomeType {
+    if (this.currentLayer === 0) return 'winter';
+    if (this.currentLayer === 2) return 'ruins';
     return 'mines';
   }
 
-  private generateChunk(cx: number, cy: number): Chunk {
-    const chunk = new Chunk(cx, cy);
+  public switchLayer(targetLayer: number, fromPortal: 'down' | 'up' = 'down'): { targetX: number; targetY: number } {
+    this.currentLayer = targetLayer;
+    this.pendingLava.clear();
+    this.pendingWater.clear();
+    this.liquidTimer = 0;
+
+    // Destination spawn coordinates in target layer:
+    if (targetLayer === 0) {
+      // Returned to Winter Tundra at descent gate in chunk (1, 1)
+      return { targetX: 16 + 8, targetY: 16 + 8 };
+    } else if (targetLayer === 1) {
+      if (fromPortal === 'up') {
+        // Ascended from Ruins back to Mines descent chamber in chunk (2, 2)
+        return { targetX: 32 + 8, targetY: 32 + 8 };
+      } else {
+        // Descended from Winter Tundra to Mines Arrival Base at chunk (0, 0)
+        return { targetX: 8, targetY: 8 };
+      }
+    } else {
+      // Arrived at Sinister Ruins Arrival Base at chunk (0, 0)
+      return { targetX: 8, targetY: 8 };
+    }
+  }
+
+  private generateChunk(cx: number, cy: number, layer: number = this.currentLayer): Chunk {
+    const chunk = new Chunk(cx, cy, layer);
+    const layerOffset = layer * 10000;
 
     for (let ly = 0; ly < CHUNK_SIZE; ly++) {
       for (let lx = 0; lx < CHUNK_SIZE; lx++) {
@@ -74,26 +100,29 @@ export class World {
         const wy = cy * CHUNK_SIZE + ly;
         const dist = Math.sqrt(wx * wx + wy * wy);
 
-        // Safe starting cavern at (0, 0)
-        if (dist <= 3.5) {
+        // Safe origin area in chunk (0, 0) of every layer
+        if (cx === 0 && cy === 0 && dist <= 3.5) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
-          // Spawn one welcoming torch at spawn point (1, 1)
           if (wx === 1 && wy === 1) {
             chunk.addTorch(lx, ly, 0);
           }
           continue;
         }
 
-        const biome = this.getBiome(wx, wy);
+        // Noise coordinates offset by layer to ensure completely unique planes
+        const nx = wx + layerOffset;
+        const ny = wy + layerOffset;
 
-        // Cave generation using noise
-        const caveVal = this.noiseCave.noise2D(wx * 0.05, wy * 0.05);
-        const caveWorm = Math.abs(this.noiseCave.noise2D(wx * 0.08, wy * 0.08));
+        const caveVal = this.noiseCave.noise2D(nx * 0.05, ny * 0.05);
+        const caveWorm = Math.abs(this.noiseCave.noise2D(nx * 0.08, ny * 0.08));
+        const terrainNoise = this.noiseTerrain.noise2D(nx * 0.04, ny * 0.04);
+        const oreNoise = this.noiseOre.noise2D(nx * 0.12, ny * 0.12);
+        const rareOreNoise = this.noiseOre.noise2D(nx * 0.18 + 50, ny * 0.18 + 50);
 
-        // -------------------------------------------------------------
-        // СЛОЙ 1: ЗИМНИЙ МИР (ВЕРХ, wy < 0)
-        // -------------------------------------------------------------
-        if (biome === 'winter') {
+        // =============================================================
+        // СЛОЙ 0: ЗИМНИЙ МИР (ТУНДРА И ЛЕДНИКИ)
+        // =============================================================
+        if (layer === 0) {
           // Open glacial caverns & crevasses
           if (caveVal > 0.44 || caveWorm < 0.08) {
             chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
@@ -107,37 +136,24 @@ export class World {
           }
 
           // Subterranean frozen aquifers
-          const waterNoise = this.noiseWater.noise2D(wx * 0.08, wy * 0.08);
+          const waterNoise = this.noiseWater.noise2D(nx * 0.08, ny * 0.08);
           if (waterNoise > 0.62 && caveVal < 0.32) {
             chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.WATER;
             chunk.setWaterLevel(lx, ly, 6);
             continue;
           }
 
-          // Base winter terrain
-          const terrainNoise = this.noiseTerrain.noise2D(wx * 0.04, wy * 0.04);
+          // Pure Winter Terrain
           let baseTile: TileType = TileType.SNOW;
-
-          if (wy < -8) {
-            if (terrainNoise > 0.30) baseTile = TileType.PACKED_ICE;
-            else if (terrainNoise > -0.05) baseTile = TileType.ICE;
-            else if (terrainNoise > -0.35) baseTile = TileType.SNOW;
-            else baseTile = TileType.FROZEN_DIRT;
-          } else {
-            // Transition zone to mines (-8 <= wy < 0)
-            if (terrainNoise > 0.25) baseTile = TileType.ICE;
-            else if (terrainNoise > -0.15) baseTile = TileType.FROZEN_DIRT;
-            else baseTile = TileType.SNOW;
-          }
-
-          // Winter ore veins
-          const oreNoise = this.noiseOre.noise2D(wx * 0.12, wy * 0.12);
-          const rareOreNoise = this.noiseOre.noise2D(wx * 0.18 + 50, wy * 0.18 + 50);
+          if (terrainNoise > 0.32) baseTile = TileType.PACKED_ICE;
+          else if (terrainNoise > 0.05) baseTile = TileType.ICE;
+          else if (terrainNoise > -0.28) baseTile = TileType.FROZEN_DIRT;
+          else baseTile = TileType.SNOW;
 
           let finalTile: TileType = baseTile;
-          if (rareOreNoise > 0.54) {
+          if (rareOreNoise > 0.52) {
             finalTile = TileType.SILVER;
-          } else if (oreNoise > 0.62) {
+          } else if (oreNoise > 0.60) {
             finalTile = TileType.COAL;
           } else if (rareOreNoise < -0.70 && dist > 15) {
             finalTile = TileType.GEM;
@@ -147,10 +163,10 @@ export class World {
           continue;
         }
 
-        // -------------------------------------------------------------
-        // СЛОЙ 3: ЗЛОВЕЩИЕ РУИНЫ (НИЗ, wy >= 80)
-        // -------------------------------------------------------------
-        if (biome === 'ruins') {
+        // =============================================================
+        // СЛОЙ 2: ЗЛОВЕЩИЕ РУИНЫ (БЕЗДНА)
+        // =============================================================
+        if (layer === 2) {
           // Ancient halls and catacomb corridors
           if (caveVal > 0.42 || caveWorm < 0.09) {
             chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
@@ -162,25 +178,19 @@ export class World {
           }
 
           // Deep magma rivers
-          const lavaNoise = this.noiseLava.noise2D(wx * 0.08, wy * 0.08);
+          const lavaNoise = this.noiseLava.noise2D(nx * 0.08, ny * 0.08);
           if (lavaNoise > 0.54 && caveVal < 0.34) {
             chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.LAVA;
             chunk.setLavaLevel(lx, ly, 6);
             continue;
           }
 
-          // Base ruin architecture
-          const terrainNoise = this.noiseTerrain.noise2D(wx * 0.04, wy * 0.04);
+          // Base Ruin Architecture
           let baseTile: TileType = TileType.RUIN_BRICK;
-
           if (terrainNoise > 0.35) baseTile = TileType.CURSED_STONE;
           else if (terrainNoise > -0.05) baseTile = TileType.RUIN_BRICK;
           else if (terrainNoise > -0.35) baseTile = TileType.BONE_BLOCK;
           else baseTile = TileType.OBSIDIAN;
-
-          // Relic and ore veins
-          const oreNoise = this.noiseOre.noise2D(wx * 0.12, wy * 0.12);
-          const rareOreNoise = this.noiseOre.noise2D(wx * 0.18 + 50, wy * 0.18 + 50);
 
           let finalTile: TileType = baseTile;
           if (rareOreNoise > 0.56) {
@@ -197,10 +207,9 @@ export class World {
           continue;
         }
 
-        // -------------------------------------------------------------
-        // СЛОЙ 2: ТЕКУЩИЕ ШАХТЫ (СЕРЕДИНА, 0 <= wy < 80)
-        // -------------------------------------------------------------
-        // Natural winding caves and caverns
+        // =============================================================
+        // СЛОЙ 1: ПОДЗЕМНЫЕ ШАХТЫ (КАТАКОМБЫ)
+        // =============================================================
         if (caveVal > 0.48 || caveWorm < 0.07) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
           if (dist > 5) {
@@ -212,72 +221,50 @@ export class World {
           continue;
         }
 
-        // Lava Pockets: deep underground, strictly sealed inside solid rock
-        const lavaNoise = this.noiseLava.noise2D(wx * 0.08, wy * 0.08);
+        // Lava Pockets sealed inside rock
+        const lavaNoise = this.noiseLava.noise2D(nx * 0.08, ny * 0.08);
         const isFarEnough = dist > 14;
         const isSealedInsideRock = caveVal < 0.32 && caveWorm > 0.16;
 
         if (isFarEnough && isSealedInsideRock && lavaNoise > 0.62) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.LAVA;
-          chunk.setLavaLevel(lx, ly, 5); // Source lava block
+          chunk.setLavaLevel(lx, ly, 5);
           continue;
         }
 
-        // Water Pockets: subterranean aquifers sealed inside solid rock
-        const waterNoise = this.noiseWater.noise2D(wx * 0.08, wy * 0.08);
+        // Water Aquifers sealed inside rock
+        const waterNoise = this.noiseWater.noise2D(nx * 0.08, ny * 0.08);
         const isWaterFarEnough = dist > 6;
 
         if (isWaterFarEnough && isSealedInsideRock && waterNoise > 0.62) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.WATER;
-          chunk.setWaterLevel(lx, ly, 6); // Source water block
+          chunk.setWaterLevel(lx, ly, 6);
           continue;
         }
 
-        // Base terrain type by distance from spawn
-        const terrainNoise = this.noiseTerrain.noise2D(wx * 0.04, wy * 0.04);
+        // Base Mines Terrain
         let baseTile: TileType = TileType.DIRT;
-
-        if (wy >= 70) {
-          // Transition to ruins: hard stone mixed with obsidian and ruin brick
-          if (terrainNoise > 0.3) baseTile = TileType.HARD_STONE;
-          else if (terrainNoise > -0.1) baseTile = TileType.RUIN_BRICK;
-          else baseTile = TileType.OBSIDIAN;
-        } else if (dist < 15) {
+        if (dist < 15) {
           baseTile = terrainNoise > 0.3 ? TileType.STONE : TileType.DIRT;
         } else if (dist < 40) {
           if (terrainNoise > 0.4) baseTile = TileType.HARD_STONE;
           else if (terrainNoise > -0.2) baseTile = TileType.STONE;
           else baseTile = TileType.DIRT;
         } else {
-          // Deeper world
           if (terrainNoise > 0.1) baseTile = TileType.HARD_STONE;
           else baseTile = TileType.STONE;
         }
 
-        // Ore Vein Generation
-        const oreNoise = this.noiseOre.noise2D(wx * 0.12, wy * 0.12);
-        const rareOreNoise = this.noiseOre.noise2D(wx * 0.18 + 50, wy * 0.18 + 50);
-
         let finalTile: TileType = baseTile;
-
-        // Coal: common everywhere in stone/dirt
         if (oreNoise > 0.58 && dist > 5) {
           finalTile = TileType.COAL;
-        }
-        // Sulfur: for bomb crafting, appears in clusters
-        else if (oreNoise < -0.62 && dist > 8) {
+        } else if (oreNoise < -0.62 && dist > 8) {
           finalTile = TileType.SULFUR;
-        }
-        // Iron: appears further out or deeper
-        else if (rareOreNoise > 0.65 && dist > 18) {
+        } else if (rareOreNoise > 0.65 && dist > 18) {
           finalTile = TileType.IRON;
-        }
-        // Gold: valuable currency, appears in medium-deep stone
-        else if (rareOreNoise > 0.52 && rareOreNoise < 0.65 && dist > 12) {
+        } else if (rareOreNoise > 0.52 && rareOreNoise < 0.65 && dist > 12) {
           finalTile = TileType.GOLD;
-        }
-        // Gems: rare, in the deep hard stone
-        else if (rareOreNoise < -0.72 && dist > 35) {
+        } else if (rareOreNoise < -0.72 && dist > 35) {
           finalTile = TileType.GEM;
         }
 
@@ -285,13 +272,13 @@ export class World {
       }
     }
 
-    // Stamp procedural template room (Starter Bunker at (0, 0), or random rare template rooms)
+    // Stamp procedural template room matching current layer
     tryStampRoom(chunk, cx, cy, this.seed);
 
     chunk.isInitialGeneration = false;
 
-    // Apply any saved deltas if they exist for this chunk
-    const key = this.getChunkKey(cx, cy);
+    // Apply any saved deltas if they exist for this chunk in this layer
+    const key = this.getChunkKey(cx, cy, layer);
     if (this.savedDeltas.has(key)) {
       const delta = this.savedDeltas.get(key)!;
       for (const [lx, ly, tileType] of delta.changes) {
@@ -333,7 +320,7 @@ export class World {
 
   public damageTile(wx: number, wy: number, amount: number, toolTier: number): { broken: boolean; tile: TileType; drops: TileDrop[] } {
     const tile = this.getTile(wx, wy);
-    if (tile === TileType.AIR || tile === TileType.BEDROCK) {
+    if (tile === TileType.AIR || tile === TileType.BEDROCK || tile === TileType.PORTAL_DOWN || tile === TileType.PORTAL_UP) {
       return { broken: false, tile, drops: [] };
     }
 
@@ -363,7 +350,13 @@ export class World {
 
   public isSolid(wx: number, wy: number): boolean {
     const tile = this.getTile(wx, wy);
-    return tile !== TileType.AIR && tile !== TileType.LAVA && tile !== TileType.WATER;
+    return (
+      tile !== TileType.AIR &&
+      tile !== TileType.LAVA &&
+      tile !== TileType.WATER &&
+      tile !== TileType.PORTAL_DOWN &&
+      tile !== TileType.PORTAL_UP
+    );
   }
 
   public getLavaLevel(wx: number, wy: number): number {
@@ -715,6 +708,7 @@ export class World {
           changes.push([lx, ly, type]);
         }
         deltasMap.set(key, {
+          layer: chunk.layer ?? 0,
           cx: chunk.cx,
           cy: chunk.cy,
           changes,
@@ -728,7 +722,8 @@ export class World {
   public applySavedDeltas(deltas: SavedChunkDelta[]) {
     this.savedDeltas.clear();
     for (const delta of deltas) {
-      const key = this.getChunkKey(delta.cx, delta.cy);
+      const deltaLayer = delta.layer ?? 0;
+      const key = this.getChunkKey(delta.cx, delta.cy, deltaLayer);
       this.savedDeltas.set(key, delta);
       const chunk = this.chunks.get(key);
       if (chunk) {
@@ -746,6 +741,7 @@ export class World {
 
   public reset(newSeed: number) {
     this.seed = newSeed;
+    this.currentLayer = 0;
     this.noiseCave = new SimplexNoise(newSeed);
     this.noiseOre = new SimplexNoise(newSeed + 101);
     this.noiseTerrain = new SimplexNoise(newSeed + 202);

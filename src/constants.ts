@@ -275,6 +275,28 @@ export const TILE_DEFINITIONS: Record<TileType, TileDef> = {
       { resource: 'gems', count: 1, chance: 0.5 },
     ],
   },
+  [TileType.PORTAL_DOWN]: {
+    id: TileType.PORTAL_DOWN,
+    name: 'Врата спуска',
+    color: '#3b82f6',
+    edgeColor: '#1d4ed8',
+    detailColor: '#93c5fd',
+    maxHp: Infinity,
+    minToolTier: 999,
+    blastResistance: 999,
+    drops: [],
+  },
+  [TileType.PORTAL_UP]: {
+    id: TileType.PORTAL_UP,
+    name: 'Врата подъема',
+    color: '#8b5cf6',
+    edgeColor: '#6d28d9',
+    detailColor: '#c084fc',
+    maxHp: Infinity,
+    minToolTier: 999,
+    blastResistance: 999,
+    drops: [],
+  },
 };
 
 export const PICKAXE_TIERS: PickaxeInfo[] = [

@@ -25,6 +25,7 @@ const bombs: Bomb[] = [];
 // Apply loaded game save data
 function applyGameSave(data: GameSaveData) {
   world.reset(data.world.seed);
+  world.currentLayer = data.player.layer ?? 0;
   world.applySavedDeltas(data.world.modifiedChunks);
 
   player.tileX = data.player.tileX;
@@ -42,7 +43,7 @@ function applyGameSave(data: GameSaveData) {
 
   bombs.length = 0;
   camera.follow(player.x, player.y, 1.0);
-  hud.update();
+  hud.update(world.getBiome(player.tileX, player.tileY));
 }
 
 // Initial Boot: Check LocalStorage for saved game
@@ -51,7 +52,9 @@ if (initialSave) {
   applyGameSave(initialSave);
   hud.showSaveStatus('💾 Прогресс загружен из сохранения');
 } else {
-  hud.showSaveStatus('✨ Новый мир сгенерирован');
+  world.currentLayer = 0;
+  hud.update(world.getBiome(player.tileX, player.tileY));
+  hud.showSaveStatus('❄️ Добро пожаловать в Зимнюю Тундру!');
 }
 
 // Save / Load / Reset Callbacks
@@ -85,12 +88,13 @@ hud.onReset = () => {
   SaveManager.clearLocalStorage();
   const newSeed = Math.floor(Math.random() * 100000);
   world.reset(newSeed);
+  world.currentLayer = 0;
   player.reset(8, 8);
   bombs.length = 0;
   camera.follow(player.x, player.y, 1.0);
-  hud.update();
+  hud.update(world.getBiome(player.tileX, player.tileY));
   SaveManager.saveToLocalStorage(player, world);
-  hud.showSaveStatus('🔄 Мир сброшен, новая игра!');
+  hud.showSaveStatus('🔄 Мир сброшен: старт в Зимней Тундре!');
 };
 
 // Periodic auto-save every 15 seconds
@@ -126,6 +130,7 @@ let isMouseDown = false;
 let hoveredTile: { tx: number; ty: number } | null = null;
 let digSoundTimer = 0;
 let lavaBurnTimer = 0;
+let portalPromptTimer = 0.8;
 
 // Window Resize Handler
 function handleResize() {
@@ -232,7 +237,90 @@ window.addEventListener('wheel', (e) => {
   }
 }, { passive: true });
 
+function tryUsePortal(): boolean {
+  const pt = player.getTileCoord();
+  const ft = player.getFacingTileCoord();
+
+  // Check current tile or facing tile
+  let portalTile = world.getTile(pt.tx, pt.ty);
+  if (portalTile !== TileType.PORTAL_DOWN && portalTile !== TileType.PORTAL_UP) {
+    const fTile = world.getTile(ft.tx, ft.ty);
+    if (fTile === TileType.PORTAL_DOWN || fTile === TileType.PORTAL_UP) {
+      portalTile = fTile;
+    } else {
+      return false;
+    }
+  }
+
+  if (portalTile === TileType.PORTAL_DOWN) {
+    if (world.currentLayer === 0) {
+      // Transition from Winter Tundra to The Mines
+      const { targetX, targetY } = world.switchLayer(1, 'down');
+      player.tileX = targetX;
+      player.tileY = targetY;
+      player.targetTileX = targetX;
+      player.targetTileY = targetY;
+      player.updatePixelCoords();
+      bombs.length = 0;
+      camera.follow(player.x, player.y, 1.0);
+      audio.playPortalTeleport();
+      hud.showSaveStatus('⛏️ Вы спустились в Подземные Шахты!');
+      hud.update(world.getBiome(player.tileX, player.tileY));
+      return true;
+    } else if (world.currentLayer === 1) {
+      // Transition from The Mines to The Sinister Ruins
+      const { targetX, targetY } = world.switchLayer(2, 'down');
+      player.tileX = targetX;
+      player.tileY = targetY;
+      player.targetTileX = targetX;
+      player.targetTileY = targetY;
+      player.updatePixelCoords();
+      bombs.length = 0;
+      camera.follow(player.x, player.y, 1.0);
+      audio.playPortalTeleport();
+      hud.showSaveStatus('👁️ Вы вошли в Зловещие Руины Бездны!');
+      hud.update(world.getBiome(player.tileX, player.tileY));
+      return true;
+    }
+  } else if (portalTile === TileType.PORTAL_UP) {
+    if (world.currentLayer === 1) {
+      // Ascent from The Mines back to Winter Tundra
+      const { targetX, targetY } = world.switchLayer(0, 'up');
+      player.tileX = targetX;
+      player.tileY = targetY;
+      player.targetTileX = targetX;
+      player.targetTileY = targetY;
+      player.updatePixelCoords();
+      bombs.length = 0;
+      camera.follow(player.x, player.y, 1.0);
+      audio.playPortalTeleport();
+      hud.showSaveStatus('❄️ Вы поднялись в Зимнюю Тундру!');
+      hud.update(world.getBiome(player.tileX, player.tileY));
+      return true;
+    } else if (world.currentLayer === 2) {
+      // Ascent from Sinister Ruins back to The Mines
+      const { targetX, targetY } = world.switchLayer(1, 'up');
+      player.tileX = targetX;
+      player.tileY = targetY;
+      player.targetTileX = targetX;
+      player.targetTileY = targetY;
+      player.updatePixelCoords();
+      bombs.length = 0;
+      camera.follow(player.x, player.y, 1.0);
+      audio.playPortalTeleport();
+      hud.showSaveStatus('⛏️ Вы вернулись в Шахты!');
+      hud.update(world.getBiome(player.tileX, player.tileY));
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function useActiveItem() {
+  if (tryUsePortal()) {
+    return;
+  }
   if (activeItem === 'bomb') {
     tryPlaceBomb();
   } else if (activeItem === 'torch') {
@@ -244,6 +332,9 @@ function tryPlaceBomb() {
   if (player.bombs <= 0) return;
 
   const pt = player.getTileCoord();
+  const curTile = world.getTile(pt.tx, pt.ty);
+  if (curTile === TileType.PORTAL_DOWN || curTile === TileType.PORTAL_UP) return;
+
   // Don't place two bombs in the exact same tile
   const existing = bombs.find(b => b.tileX === pt.tx && b.tileY === pt.ty);
   if (existing) return;
@@ -251,7 +342,7 @@ function tryPlaceBomb() {
   player.bombs--;
   bombs.push(new Bomb(pt.tx, pt.ty));
   audio.playBombPlace();
-  hud.update();
+  hud.update(world.getBiome(player.tileX, player.tileY));
 }
 
 function tryPlaceTorch() {
@@ -268,7 +359,7 @@ function tryPlaceTorch() {
     player.inventory.torches--;
     audio.playTorchPlace();
     renderer.addParticle((pt.tx + 0.5) * TILE_SIZE, (pt.ty + 0.5) * TILE_SIZE, '#ffaa00', 6, 20);
-    hud.update();
+    hud.update(world.getBiome(player.tileX, player.tileY));
   }
 }
 
@@ -497,7 +588,7 @@ function gameLoop(now: number) {
       renderer.addFloatingText(player.x, player.y - 10, 'ОГОНЬ! -15', '#ff4400');
       lavaBurnTimer = 0;
     }
-    hud.update();
+    hud.update(world.getBiome(player.tileX, player.tileY));
   } else if (currentTile === TileType.WATER) {
     // Water cools down the player and splashes
     if (Math.random() < 0.15) {
@@ -505,10 +596,36 @@ function gameLoop(now: number) {
     }
   }
 
-  // 10. Update Effects & Particles
+  // 10. Portal Interaction Hint
+  const playerCurTile = world.getTile(player.tileX, player.tileY);
+  const playerFacingTile = world.getTile(facingTile.tx, facingTile.ty);
+  const activePortal = (playerCurTile === TileType.PORTAL_DOWN || playerCurTile === TileType.PORTAL_UP)
+    ? playerCurTile
+    : ((playerFacingTile === TileType.PORTAL_DOWN || playerFacingTile === TileType.PORTAL_UP) ? playerFacingTile : null);
+
+  if (activePortal !== null) {
+    portalPromptTimer += dt;
+    if (portalPromptTimer >= 0.8) {
+      let portalLabel = '[E] Войти во врата';
+      let portalColor = '#38bdf8';
+      if (activePortal === TileType.PORTAL_DOWN) {
+        portalLabel = world.currentLayer === 0 ? '[E] Спуститься в Шахты' : '[E] Спуститься в Руины';
+        portalColor = world.currentLayer === 0 ? '#38bdf8' : '#f43f5e';
+      } else if (activePortal === TileType.PORTAL_UP) {
+        portalLabel = world.currentLayer === 1 ? '[E] Подняться в Тундру' : '[E] Подняться в Шахты';
+        portalColor = world.currentLayer === 1 ? '#bae6fd' : '#fbbf24';
+      }
+      renderer.addFloatingText(player.x, player.y - 14, portalLabel, portalColor);
+      portalPromptTimer = 0;
+    }
+  } else {
+    portalPromptTimer = 0.8;
+  }
+
+  // 11. Update Effects & Particles
   renderer.updateEffects(dt);
 
-  // 11. Render Screen
+  // 12. Render Screen
   // Pass facing tile as target indicator if not mouse hovering
   const activeTarget = (targetMiningX !== null && targetMiningY !== null)
     ? { tx: targetMiningX, ty: targetMiningY }

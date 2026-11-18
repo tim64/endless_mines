@@ -31,6 +31,11 @@ export class Player {
     obsidian: 0,
     gold: 0,
     torches: 5,
+    snow: 0,
+    ice: 0,
+    silver: 0,
+    bone: 0,
+    void_crystal: 0,
   };
 
   public pickaxeTier: number = 1; // starts with Wooden Pickaxe
@@ -179,6 +184,11 @@ export class Player {
       obsidian: 0,
       gold: 0,
       torches: 5,
+      snow: 0,
+      ice: 0,
+      silver: 0,
+      bone: 0,
+      void_crystal: 0,
     };
     this.updatePixelCoords();
   }

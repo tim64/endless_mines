@@ -241,12 +241,167 @@ export const ROOM_TEMPLATES: RoomTemplate[] = [
       chunk.setTile(12, 7, TileType.GEM);
     },
   },
+
+  // -------------------------------------------------------------
+  // Template 6: Ледяной грот (Glacial Grotto - Winter Biome)
+  // Oval ice chamber with packed ice, ice crystals, and silver
+  // -------------------------------------------------------------
+  {
+    id: 6,
+    name: 'Ледяной грот',
+    build: (chunk) => {
+      const centerX = 8;
+      const centerY = 8;
+
+      for (let ly = 3; ly <= 13; ly++) {
+        for (let lx = 3; lx <= 13; lx++) {
+          const distSq = (lx - centerX) ** 2 + (ly - centerY) ** 2;
+          if (distSq <= 20) {
+            chunk.setTile(lx, ly, TileType.AIR);
+          } else if (distSq <= 25) {
+            chunk.setTile(lx, ly, TileType.PACKED_ICE);
+          }
+        }
+      }
+
+      // Central frozen pond: 2x2 water covered by ice
+      chunk.setTile(7, 7, TileType.ICE);
+      chunk.setTile(8, 7, TileType.ICE);
+      chunk.setTile(7, 8, TileType.ICE);
+      chunk.setTile(8, 8, TileType.ICE);
+
+      // Silver deposits in walls
+      chunk.setTile(5, 5, TileType.SILVER);
+      chunk.setTile(11, 5, TileType.SILVER);
+      chunk.setTile(5, 11, TileType.SILVER);
+      chunk.setTile(11, 11, TileType.SILVER);
+
+      // Blueish glowing torches
+      chunk.addTorch(8, 5, Math.random() * 100);
+      chunk.addTorch(8, 11, Math.random() * 100);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 7: Замерзший форпост (Frozen Outpost - Winter Biome)
+  // 10x10 rectangular lodge with snow blocks, permafrost, and silver
+  // -------------------------------------------------------------
+  {
+    id: 7,
+    name: 'Замерзший форпост',
+    build: (chunk) => {
+      for (let ly = 4; ly <= 12; ly++) {
+        for (let lx = 4; lx <= 12; lx++) {
+          const isBorder = lx === 4 || lx === 12 || ly === 4 || ly === 12;
+          if (isBorder) {
+            // Packed ice walls with snow gateways
+            const isDoor = (lx === 8 && (ly === 4 || ly === 12)) || (ly === 8 && (lx === 4 || lx === 12));
+            chunk.setTile(lx, ly, isDoor ? TileType.SNOW : TileType.PACKED_ICE);
+          } else {
+            chunk.setTile(lx, ly, TileType.AIR);
+          }
+        }
+      }
+
+      // Torches
+      chunk.addTorch(6, 6, 10);
+      chunk.addTorch(10, 6, 35);
+      chunk.addTorch(6, 10, 60);
+      chunk.addTorch(10, 10, 85);
+
+      // Silver and Snow block deposits
+      chunk.setTile(8, 8, TileType.SILVER);
+      chunk.setTile(7, 8, TileType.SNOW);
+      chunk.setTile(9, 8, TileType.SNOW);
+      chunk.setTile(8, 7, TileType.SILVER);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 8: Склеп Древних (Crypt of the Ancients - Ruins Biome)
+  // 11x11 grand hall of ruin brick with obsidian columns & void crystals
+  // -------------------------------------------------------------
+  {
+    id: 8,
+    name: 'Склеп Древних',
+    build: (chunk) => {
+      for (let ly = 3; ly <= 13; ly++) {
+        for (let lx = 3; lx <= 13; lx++) {
+          const isBorder = lx === 3 || lx === 13 || ly === 3 || ly === 13;
+          if (isBorder) {
+            chunk.setTile(lx, ly, TileType.RUIN_BRICK);
+          } else {
+            chunk.setTile(lx, ly, TileType.AIR);
+          }
+        }
+      }
+
+      // 4 Obsidian columns
+      chunk.setTile(5, 5, TileType.OBSIDIAN);
+      chunk.setTile(11, 5, TileType.OBSIDIAN);
+      chunk.setTile(5, 11, TileType.OBSIDIAN);
+      chunk.setTile(11, 11, TileType.OBSIDIAN);
+
+      // Central Dais of Cursed Stone with Void Crystal
+      chunk.setTile(8, 8, TileType.VOID_CRYSTAL);
+      chunk.setTile(7, 8, TileType.CURSED_STONE);
+      chunk.setTile(9, 8, TileType.CURSED_STONE);
+      chunk.setTile(8, 7, TileType.CURSED_STONE);
+      chunk.setTile(8, 9, TileType.CURSED_STONE);
+
+      // Cursed Gold in corners
+      chunk.setTile(4, 4, TileType.GOLD);
+      chunk.setTile(12, 12, TileType.GOLD);
+
+      // Torches on the walls
+      chunk.addTorch(8, 4, 15);
+      chunk.addTorch(8, 12, 65);
+    },
+  },
+
+  // -------------------------------------------------------------
+  // Template 9: Алтарь Бездны (Abyssal Void Sanctum - Ruins Biome)
+  // Rhombus bone sanctum with central lava font & void crystals
+  // -------------------------------------------------------------
+  {
+    id: 9,
+    name: 'Алтарь Бездны',
+    build: (chunk) => {
+      const centerX = 8;
+      const centerY = 8;
+
+      for (let ly = 3; ly <= 13; ly++) {
+        for (let lx = 3; lx <= 13; lx++) {
+          const manhattan = Math.abs(lx - centerX) + Math.abs(ly - centerY);
+          if (manhattan <= 4) {
+            chunk.setTile(lx, ly, TileType.AIR);
+          } else if (manhattan === 5) {
+            chunk.setTile(lx, ly, TileType.BONE_BLOCK);
+          }
+        }
+      }
+
+      // Central Lava Font
+      chunk.setTile(centerX, centerY, TileType.LAVA);
+      chunk.setLavaLevel(centerX, centerY, 5);
+
+      // Flanked by Obsidian and Void Crystals
+      chunk.setTile(centerX - 1, centerY, TileType.OBSIDIAN);
+      chunk.setTile(centerX + 1, centerY, TileType.OBSIDIAN);
+      chunk.setTile(centerX, centerY - 1, TileType.VOID_CRYSTAL);
+      chunk.setTile(centerX, centerY + 1, TileType.VOID_CRYSTAL);
+
+      // Bone blocks & Gold
+      chunk.setTile(centerX - 2, centerY, TileType.GOLD);
+      chunk.setTile(centerX + 2, centerY, TileType.GOLD);
+    },
+  },
 ];
 
 /**
  * Stamps a procedural template room into the chunk.
  * Chunk (0, 0) always receives the Starter Bunker.
- * Other chunks have a rare (~10%) chance to contain one of the special chambers.
+ * Other chunks have a rare (~12%) chance to contain one of the special chambers matching their biome.
  */
 export function tryStampRoom(chunk: Chunk, cx: number, cy: number, seed: number) {
   // Always spawn Starter Bunker at world origin chunk (0, 0)
@@ -263,9 +418,21 @@ export function tryStampRoom(chunk: Chunk, cx: number, cy: number, seed: number)
   const hash = Math.abs(Math.sin(cx * 37.17 + cy * 59.83 + seed * 0.1) * 43758.5453);
   const roll = hash - Math.floor(hash);
 
-  // ~10% chance for a chunk to feature a special template room
-  if (roll < 0.10) {
-    const roomType = 1 + (Math.floor(roll * 1000) % 5); // 1..5
+  // ~12% chance for a chunk to feature a special template room
+  if (roll < 0.12) {
+    let roomType: number;
+    if (cy < 0) {
+      // Winter layer: rooms 6, 7 (or 2)
+      const winterChoices = [6, 7, 2];
+      roomType = winterChoices[Math.floor(roll * 1000) % winterChoices.length];
+    } else if (cy >= 5) {
+      // Sinister ruins layer: rooms 8, 9 (or 1, 4)
+      const ruinsChoices = [8, 9, 1, 4];
+      roomType = ruinsChoices[Math.floor(roll * 1000) % ruinsChoices.length];
+    } else {
+      // Mines layer: rooms 1..5
+      roomType = 1 + (Math.floor(roll * 1000) % 5);
+    }
     ROOM_TEMPLATES[roomType].build(chunk, 3, 3, cx, cy);
   }
 }

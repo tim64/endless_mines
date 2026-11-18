@@ -12,10 +12,36 @@ export enum TileType {
   WATER = 10,
   OBSIDIAN = 11,
   GOLD = 12,
+  // Зимний мир (Верхний слой, Y < 0)
+  SNOW = 13,
+  ICE = 14,
+  PACKED_ICE = 15,
+  FROZEN_DIRT = 16,
+  SILVER = 17,
+  // Зловещие руины (Глубокий слой, Y >= 80)
+  RUIN_BRICK = 18,
+  CURSED_STONE = 19,
+  BONE_BLOCK = 20,
+  VOID_CRYSTAL = 21,
 }
 
+export type ResourceType =
+  | 'dirt'
+  | 'stone'
+  | 'coal'
+  | 'iron'
+  | 'sulfur'
+  | 'gems'
+  | 'obsidian'
+  | 'gold'
+  | 'snow'
+  | 'ice'
+  | 'silver'
+  | 'bone'
+  | 'void_crystal';
+
 export interface TileDrop {
-  resource: 'dirt' | 'stone' | 'coal' | 'iron' | 'sulfur' | 'gems' | 'obsidian' | 'gold';
+  resource: ResourceType;
   count: number;
   chance: number;
 }
@@ -42,7 +68,14 @@ export interface Inventory {
   obsidian: number;
   gold: number;
   torches: number;
+  snow: number;
+  ice: number;
+  silver: number;
+  bone: number;
+  void_crystal: number;
 }
+
+export type BiomeType = 'winter' | 'mines' | 'ruins';
 
 export interface Torch {
   tileX: number;

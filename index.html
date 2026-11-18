@@ -227,6 +227,7 @@
       <div class="panel">
         <div class="panel-title">⛏️ Шахтер</div>
         <div>HP: <span id="hud-hp" style="color: #a3be8c; font-weight: bold;">100</span> / 100</div>
+        <div>Слой: <span id="hud-biome" style="font-weight: bold; color: #88c0d0;">⛏️ Шахты</span></div>
         <div>Золото (валюта): <span id="hud-gold" style="color: #ffd700; font-weight: bold;">0</span> 🪙</div>
         <div>Кирка: <span id="hud-pickaxe" style="color: #ebcb8b; font-weight: bold;">Деревянная (ур. 1)</span></div>
         <div>Бомбы: <span id="hud-bombs" style="color: #bf616a; font-weight: bold;">3</span> шт. (клавиша [E] / ПКМ)</div>
@@ -241,8 +242,12 @@
         <div class="resource-row"><span class="res-badge" style="background: #2b2b2b; border: 1px solid #555;"></span> Уголь: <span id="res-coal">0</span></div>
         <div class="resource-row"><span class="res-badge" style="background: #ebcb8b;"></span> Железо: <span id="res-iron">0</span></div>
         <div class="resource-row"><span class="res-badge" style="background: #eedd44;"></span> Сера: <span id="res-sulfur">0</span></div>
-        <div class="resource-row"><span class="res-badge" style="background: #5e81ac;"></span> Рубины/Самоцветы: <span id="res-gems">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #5e81ac;"></span> Рубины: <span id="res-gems">0</span></div>
         <div class="resource-row"><span class="res-badge" style="background: #8b5cf6;"></span> Обсидиан: <span id="res-obsidian">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #7dd3fc;"></span> Снег / Лёд: <span id="res-snow">0</span> / <span id="res-ice">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #cbd5e1;"></span> Серебро: <span id="res-silver">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #d6cbbe;"></span> Кости: <span id="res-bone">0</span></div>
+        <div class="resource-row"><span class="res-badge" style="background: #d946ef;"></span> Кристаллы Пустоты: <span id="res-void">0</span></div>
       </div>
     </div>
 
@@ -272,6 +277,14 @@
         <button id="btn-upgrade-light" class="craft-btn">
           <span>💡 Улучшить фонарь</span>
           <span id="light-cost" style="color: #ebcb8b;">5 Угля + 2 Железа</span>
+        </button>
+        <button id="btn-craft-cryo" class="craft-btn">
+          <span>❄️ Крио-граната (+1)</span>
+          <span style="color: #7dd3fc;">2 Льда + 1 Сера</span>
+        </button>
+        <button id="btn-craft-amulet" class="craft-btn">
+          <span>🔮 Амулет Бездны</span>
+          <span style="color: #d946ef;">1 Пустота + 2 Золота</span>
         </button>
       </div>
 

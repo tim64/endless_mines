@@ -155,6 +155,126 @@ export const TILE_DEFINITIONS: Record<TileType, TileDef> = {
       { resource: 'stone', count: 1, chance: 0.5 },
     ],
   },
+  // -----------------------------------------------------------------
+  // Зимний мир (Верхний слой, Y < 0)
+  // -----------------------------------------------------------------
+  [TileType.SNOW]: {
+    id: TileType.SNOW,
+    name: 'Снег',
+    color: '#e5f3ff',
+    edgeColor: '#bcd9ea',
+    detailColor: '#ffffff',
+    maxHp: 0.6,
+    minToolTier: 0,
+    blastResistance: 2,
+    drops: [{ resource: 'snow', count: 2, chance: 1.0 }],
+  },
+  [TileType.ICE]: {
+    id: TileType.ICE,
+    name: 'Лёд',
+    color: '#7dd3fc',
+    edgeColor: '#38bdf8',
+    detailColor: '#bae6fd',
+    maxHp: 1.2,
+    minToolTier: 0,
+    blastResistance: 10,
+    drops: [
+      { resource: 'ice', count: 1, chance: 1.0 },
+      { resource: 'snow', count: 1, chance: 0.5 },
+    ],
+  },
+  [TileType.PACKED_ICE]: {
+    id: TileType.PACKED_ICE,
+    name: 'Плотный лёд',
+    color: '#2563eb',
+    edgeColor: '#1d4ed8',
+    detailColor: '#93c5fd',
+    maxHp: 4.5,
+    minToolTier: 2,
+    blastResistance: 30,
+    drops: [{ resource: 'ice', count: 2, chance: 1.0 }],
+  },
+  [TileType.FROZEN_DIRT]: {
+    id: TileType.FROZEN_DIRT,
+    name: 'Мерзлота',
+    color: '#475569',
+    edgeColor: '#334155',
+    detailColor: '#94a3b8',
+    maxHp: 1.6,
+    minToolTier: 0,
+    blastResistance: 8,
+    drops: [
+      { resource: 'dirt', count: 1, chance: 1.0 },
+      { resource: 'ice', count: 1, chance: 0.35 },
+    ],
+  },
+  [TileType.SILVER]: {
+    id: TileType.SILVER,
+    name: 'Серебро',
+    color: '#64748b',
+    edgeColor: '#475569',
+    detailColor: '#f1f5f9',
+    maxHp: 4.8,
+    minToolTier: 2,
+    blastResistance: 25,
+    drops: [
+      { resource: 'silver', count: 1, chance: 1.0 },
+      { resource: 'stone', count: 1, chance: 0.5 },
+    ],
+  },
+  // -----------------------------------------------------------------
+  // Зловещие руины (Глубокий слой, Y >= 80)
+  // -----------------------------------------------------------------
+  [TileType.RUIN_BRICK]: {
+    id: TileType.RUIN_BRICK,
+    name: 'Древний кирпич',
+    color: '#382b47',
+    edgeColor: '#241a30',
+    detailColor: '#6d4c82',
+    maxHp: 7.0,
+    minToolTier: 2,
+    blastResistance: 60,
+    drops: [{ resource: 'stone', count: 2, chance: 1.0 }],
+  },
+  [TileType.CURSED_STONE]: {
+    id: TileType.CURSED_STONE,
+    name: 'Проклятый камень',
+    color: '#1f1629',
+    edgeColor: '#120c1a',
+    detailColor: '#86198f',
+    maxHp: 9.0,
+    minToolTier: 3,
+    blastResistance: 70,
+    drops: [
+      { resource: 'stone', count: 2, chance: 1.0 },
+      { resource: 'obsidian', count: 1, chance: 0.25 },
+    ],
+  },
+  [TileType.BONE_BLOCK]: {
+    id: TileType.BONE_BLOCK,
+    name: 'Окаменелые кости',
+    color: '#d6cbbe',
+    edgeColor: '#9c8e7e',
+    detailColor: '#f5efe6',
+    maxHp: 3.5,
+    minToolTier: 1,
+    blastResistance: 15,
+    drops: [{ resource: 'bone', count: 2, chance: 1.0 }],
+  },
+  [TileType.VOID_CRYSTAL]: {
+    id: TileType.VOID_CRYSTAL,
+    name: 'Кристалл пустоты',
+    color: '#2a163d',
+    edgeColor: '#180c24',
+    detailColor: '#d946ef',
+    maxHp: 10.0,
+    minToolTier: 3,
+    blastResistance: 50,
+    drops: [
+      { resource: 'void_crystal', count: 1, chance: 1.0 },
+      { resource: 'gems', count: 1, chance: 0.5 },
+    ],
+  },
 };
 
 export const PICKAXE_TIERS: PickaxeInfo[] = [
@@ -163,4 +283,5 @@ export const PICKAXE_TIERS: PickaxeInfo[] = [
   { tier: 2, name: 'Каменная кирка', power: 4.0, color: '#88c0d0' },
   { tier: 3, name: 'Железная кирка', power: 7.5, color: '#ebcb8b' },
   { tier: 4, name: 'Алмазный бур', power: 15.0, color: '#b48ead' },
+  { tier: 5, name: 'Бур Пустоты', power: 28.0, color: '#d946ef' },
 ];

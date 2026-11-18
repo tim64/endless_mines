@@ -1,11 +1,13 @@
 import { Player } from '../entities/player';
 import { PICKAXE_TIERS, TILE_SIZE } from '../constants';
+import { BiomeType } from '../types';
 
 export class HUD {
   private player: Player;
 
   // DOM Elements
   private hpEl!: HTMLElement;
+  private biomeEl!: HTMLElement;
   private hudGoldEl!: HTMLElement;
   private pickaxeEl!: HTMLElement;
   private bombsEl!: HTMLElement;
@@ -20,6 +22,11 @@ export class HUD {
   private resGemsEl!: HTMLElement;
   private resObsidianEl!: HTMLElement;
   private resGoldEl!: HTMLElement;
+  private resSnowEl!: HTMLElement;
+  private resIceEl!: HTMLElement;
+  private resSilverEl!: HTMLElement;
+  private resBoneEl!: HTMLElement;
+  private resVoidEl!: HTMLElement;
 
   private btnCraftBomb!: HTMLButtonElement;
   private btnCraftDynamite!: HTMLButtonElement;
@@ -27,6 +34,8 @@ export class HUD {
   private btnUpgradePickaxe!: HTMLButtonElement;
   private btnCraftMedkit!: HTMLButtonElement;
   private btnUpgradeLight!: HTMLButtonElement;
+  private btnCraftCryo!: HTMLButtonElement;
+  private btnCraftAmulet!: HTMLButtonElement;
   private pickaxeCostEl!: HTMLElement;
   private lightCostEl!: HTMLElement;
 
@@ -60,6 +69,7 @@ export class HUD {
 
   private initElements() {
     this.hpEl = document.getElementById('hud-hp')!;
+    this.biomeEl = document.getElementById('hud-biome')!;
     this.hudGoldEl = document.getElementById('hud-gold')!;
     this.pickaxeEl = document.getElementById('hud-pickaxe')!;
     this.bombsEl = document.getElementById('hud-bombs')!;
@@ -74,6 +84,11 @@ export class HUD {
     this.resGemsEl = document.getElementById('res-gems')!;
     this.resObsidianEl = document.getElementById('res-obsidian')!;
     this.resGoldEl = document.getElementById('res-gold')!;
+    this.resSnowEl = document.getElementById('res-snow')!;
+    this.resIceEl = document.getElementById('res-ice')!;
+    this.resSilverEl = document.getElementById('res-silver')!;
+    this.resBoneEl = document.getElementById('res-bone')!;
+    this.resVoidEl = document.getElementById('res-void')!;
 
     this.btnCraftBomb = document.getElementById('btn-craft-bomb') as HTMLButtonElement;
     this.btnCraftDynamite = document.getElementById('btn-craft-dynamite') as HTMLButtonElement;
@@ -81,6 +96,8 @@ export class HUD {
     this.btnUpgradePickaxe = document.getElementById('btn-upgrade-pickaxe') as HTMLButtonElement;
     this.btnCraftMedkit = document.getElementById('btn-craft-medkit') as HTMLButtonElement;
     this.btnUpgradeLight = document.getElementById('btn-upgrade-light') as HTMLButtonElement;
+    this.btnCraftCryo = document.getElementById('btn-craft-cryo') as HTMLButtonElement;
+    this.btnCraftAmulet = document.getElementById('btn-craft-amulet') as HTMLButtonElement;
     this.pickaxeCostEl = document.getElementById('pickaxe-cost')!;
     this.lightCostEl = document.getElementById('light-cost')!;
 
@@ -154,6 +171,10 @@ export class HUD {
         this.player.inventory.gems -= 4;
         this.player.inventory.obsidian -= 2;
         this.player.pickaxeTier = 4;
+      } else if (nextTier === 5 && this.player.inventory.silver >= 6 && this.player.inventory.void_crystal >= 3) {
+        this.player.inventory.silver -= 6;
+        this.player.inventory.void_crystal -= 3;
+        this.player.pickaxeTier = 5;
       }
       this.update();
     });
@@ -174,6 +195,26 @@ export class HUD {
         this.player.inventory.coal -= 5;
         this.player.inventory.iron -= 2;
         this.player.lightRadius += 25;
+        this.update();
+      }
+    });
+
+    // 4.5 Craft Cryo-Bomb: 2 Ice + 1 Sulfur -> +1 Bomb
+    this.btnCraftCryo.addEventListener('click', () => {
+      if (this.player.inventory.ice >= 2 && this.player.inventory.sulfur >= 1) {
+        this.player.inventory.ice -= 2;
+        this.player.inventory.sulfur -= 1;
+        this.player.bombs += 1;
+        this.update();
+      }
+    });
+
+    // 4.6 Craft Void Amulet: 1 Void Crystal + 2 Gold -> +35 Light radius
+    this.btnCraftAmulet.addEventListener('click', () => {
+      if (this.player.inventory.void_crystal >= 1 && this.player.inventory.gold >= 2) {
+        this.player.inventory.void_crystal -= 1;
+        this.player.inventory.gold -= 2;
+        this.player.lightRadius += 35;
         this.update();
       }
     });
@@ -234,13 +275,25 @@ export class HUD {
     }
   }
 
-  public update() {
+  public update(biome: BiomeType = 'mines') {
     const p = this.player;
 
     // Stats
     this.hpEl.innerText = `${Math.ceil(p.hp)}`;
     this.hpEl.style.color = p.hp > 40 ? '#a3be8c' : '#bf616a';
     this.hudGoldEl.innerText = `${p.inventory.gold}`;
+
+    // Biome layer
+    if (biome === 'winter') {
+      this.biomeEl.innerText = '❄️ Зимние пустоши';
+      this.biomeEl.style.color = '#7dd3fc';
+    } else if (biome === 'ruins') {
+      this.biomeEl.innerText = '👁️ Зловещие руины';
+      this.biomeEl.style.color = '#d946ef';
+    } else {
+      this.biomeEl.innerText = '⛏️ Подземные шахты';
+      this.biomeEl.style.color = '#88c0d0';
+    }
 
     const pick = p.getPickaxe();
     this.pickaxeEl.innerText = `${pick.name} (ур. ${pick.tier})`;
@@ -265,11 +318,18 @@ export class HUD {
     this.resSulfurEl.innerText = `${p.inventory.sulfur}`;
     this.resGemsEl.innerText = `${p.inventory.gems}`;
     this.resObsidianEl.innerText = `${p.inventory.obsidian}`;
+    this.resSnowEl.innerText = `${p.inventory.snow}`;
+    this.resIceEl.innerText = `${p.inventory.ice}`;
+    this.resSilverEl.innerText = `${p.inventory.silver}`;
+    this.resBoneEl.innerText = `${p.inventory.bone}`;
+    this.resVoidEl.innerText = `${p.inventory.void_crystal}`;
 
     // Crafting availability
     this.btnCraftBomb.disabled = !(p.inventory.coal >= 1 && p.inventory.sulfur >= 1);
     this.btnCraftDynamite.disabled = !(p.inventory.gold >= 3 && p.inventory.sulfur >= 1);
     this.btnCraftTorch.disabled = !(p.inventory.coal >= 1 && p.inventory.dirt >= 2);
+    this.btnCraftCryo.disabled = !(p.inventory.ice >= 2 && p.inventory.sulfur >= 1);
+    this.btnCraftAmulet.disabled = !(p.inventory.void_crystal >= 1 && p.inventory.gold >= 2);
 
     // Pickaxe upgrade costs
     const nextTier = p.pickaxeTier + 1;
@@ -285,6 +345,9 @@ export class HUD {
     } else if (nextTier === 4) {
       this.pickaxeCostEl.innerText = '4 Самоцвета + 2 Обсидиана';
       this.btnUpgradePickaxe.disabled = !(p.inventory.gems >= 4 && p.inventory.obsidian >= 2);
+    } else if (nextTier === 5) {
+      this.pickaxeCostEl.innerText = '6 Серебра + 3 Пустоты';
+      this.btnUpgradePickaxe.disabled = !(p.inventory.silver >= 6 && p.inventory.void_crystal >= 3);
     }
 
     this.btnCraftMedkit.disabled = !(p.hp < p.maxHp && p.inventory.dirt >= 5 && p.inventory.coal >= 5);

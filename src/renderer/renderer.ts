@@ -217,51 +217,131 @@ export class Renderer {
           // Deep glossy volcanic glass
           ctx.fillStyle = '#161124';
           ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-
-          // Bevel edge
           ctx.fillStyle = '#0d0917';
           ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
           ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
-
-          // Crystal purple fractures & glints
           ctx.fillStyle = '#8b5cf6';
           ctx.fillRect(px + 4, py + 4, 3, 3);
           ctx.fillRect(px + 10, py + 9, 2, 2);
           ctx.fillStyle = '#c084fc';
           ctx.fillRect(px + 5, py + 5, 1, 1);
-          continue;
-        }
-
-        const def = TILE_DEFINITIONS[tile];
-
-        // Base tile fill
-        ctx.fillStyle = def.color;
-        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-
-        // Retro Bevel edge
-        ctx.fillStyle = def.edgeColor;
-        ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
-        ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
-
-        // Tile specific ore speckles
-        if (def.detailColor) {
-          ctx.fillStyle = def.detailColor;
-          const hash = Math.abs(tx * 31 + ty * 17);
-          const ox = 3 + (hash % 8);
-          const oy = 3 + ((hash >> 3) % 8);
-          ctx.fillRect(px + ox, py + oy, 3, 3);
-          if (tile === TileType.GEM) {
+        } else if (tile === TileType.SNOW) {
+          // Soft crisp snow with icy border
+          ctx.fillStyle = '#f0f9ff';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+          const hash = Math.abs(tx * 23 + ty * 37);
+          if (hash % 4 === 0) {
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(px + ox + 1, py + oy + 1, 1, 1);
-          } else if (tile === TileType.GOLD) {
-            const time = performance.now() * 0.004;
-            const glint = Math.sin(time + tx * 3.1 + ty * 5.3);
-            if (glint > 0.5) {
+            ctx.fillRect(px + 3 + (hash % 8), py + 3 + ((hash >> 2) % 8), 2, 2);
+          }
+        } else if (tile === TileType.ICE) {
+          // Translucent frosty cyan ice
+          ctx.fillStyle = '#7dd3fc';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#e0f2fe';
+          ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, 2);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(px + 3, py + 7, 5, 1);
+          ctx.fillRect(px + 7, py + 8, 4, 1);
+          ctx.fillRect(px + 10, py + 9, 3, 1);
+          ctx.fillStyle = '#0284c7';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+        } else if (tile === TileType.PACKED_ICE) {
+          // Deep solid arctic blue ice
+          ctx.fillStyle = '#1d4ed8';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#60a5fa';
+          ctx.fillRect(px + 2, py + 2, 4, 2);
+          ctx.fillRect(px + 8, py + 8, 5, 2);
+          ctx.fillStyle = '#1e3a8a';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+        } else if (tile === TileType.RUIN_BRICK) {
+          // Ancient mossy dark purple stone brick
+          ctx.fillStyle = '#2b2138';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#181220';
+          ctx.fillRect(px, py + 7, TILE_SIZE, 1);
+          ctx.fillRect(px, py + TILE_SIZE - 1, TILE_SIZE, 1);
+          ctx.fillRect(px + 8, py, 1, 7);
+          ctx.fillRect(px + 4, py + 8, 1, 7);
+          ctx.fillStyle = '#4c3a63';
+          ctx.fillRect(px + 1, py + 1, 6, 1);
+          ctx.fillRect(px + 9, py + 1, 6, 1);
+          ctx.fillRect(px + 1, py + 8, 2, 1);
+          ctx.fillRect(px + 5, py + 8, 10, 1);
+        } else if (tile === TileType.CURSED_STONE) {
+          // Ominous abyssal stone with dark magenta streaks
+          ctx.fillStyle = '#171120';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#0f0a15';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+          const pulse = Math.sin(performance.now() * 0.003 + tx * 2 + ty * 3);
+          ctx.fillStyle = pulse > 0 ? '#a21caf' : '#701a75';
+          ctx.fillRect(px + 4, py + 5, 3, 2);
+          ctx.fillRect(px + 7, py + 6, 4, 1);
+          ctx.fillRect(px + 10, py + 7, 2, 3);
+        } else if (tile === TileType.BONE_BLOCK) {
+          // Fossilized bone strata
+          ctx.fillStyle = '#d6cbbe';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#9c8e7e';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+          ctx.fillStyle = '#786b5c';
+          ctx.fillRect(px + 3, py + 6, 5, 2);
+          ctx.fillRect(px + 8, py + 7, 5, 2);
+        } else if (tile === TileType.VOID_CRYSTAL) {
+          // Deep eldritch glowing crystal
+          ctx.fillStyle = '#2a163d';
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#180c24';
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+          const glint = Math.sin(performance.now() * 0.005 + tx * 3 + ty * 2);
+          ctx.fillStyle = glint > 0.4 ? '#f472b6' : '#d946ef';
+          ctx.fillRect(px + 5, py + 4, 6, 7);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(px + 7, py + 6, 2, 2);
+        } else {
+          const def = TILE_DEFINITIONS[tile];
+
+          // Base tile fill
+          ctx.fillStyle = def.color;
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+          // Retro Bevel edge
+          ctx.fillStyle = def.edgeColor;
+          ctx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+          ctx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+
+          // Tile specific ore speckles
+          if (def.detailColor) {
+            ctx.fillStyle = def.detailColor;
+            const hash = Math.abs(tx * 31 + ty * 17);
+            const ox = 3 + (hash % 8);
+            const oy = 3 + ((hash >> 3) % 8);
+            ctx.fillRect(px + ox, py + oy, 3, 3);
+            if (tile === TileType.GEM) {
               ctx.fillStyle = '#ffffff';
               ctx.fillRect(px + ox + 1, py + oy + 1, 1, 1);
+            } else if (tile === TileType.GOLD || tile === TileType.SILVER) {
+              const time = performance.now() * 0.004;
+              const glint = Math.sin(time + tx * 3.1 + ty * 5.3);
+              if (glint > 0.5) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(px + ox + 1, py + oy + 1, 1, 1);
+              }
             }
           }
         }
+
+        const def = TILE_DEFINITIONS[tile];
 
         // Damage Cracks Overlay
         const dmg = world.getDamage(tx, ty);
@@ -453,7 +533,39 @@ export class Renderer {
 
     ctx.restore();
 
-    // 5. Render Particles
+    // 5. Atmospheric Layer Particles (Snow in Winter, Void Embers in Ruins)
+    if (player.tileY < 0 && Math.random() < 0.4) {
+      const bounds = camera.getVisibleWorldBounds();
+      const sx = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+      const sy = bounds.minY - 5;
+      this.particles.push({
+        x: sx,
+        y: sy,
+        vx: -15 + Math.random() * 30,
+        vy: 30 + Math.random() * 40,
+        color: '#f0f9ff',
+        size: 1.5 + Math.random() * 2,
+        life: 0,
+        maxLife: 2.2,
+      });
+    } else if (player.tileY >= 80 && Math.random() < 0.25) {
+      const bounds = camera.getVisibleWorldBounds();
+      const sx = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+      const sy = bounds.maxY + 5;
+      const colors = ['#d946ef', '#c084fc', '#f43f5e', '#7e22ce'];
+      this.particles.push({
+        x: sx,
+        y: sy,
+        vx: -10 + Math.random() * 20,
+        vy: -(25 + Math.random() * 35),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 1.5 + Math.random() * 2,
+        life: 0,
+        maxLife: 2.0,
+      });
+    }
+
+    // 5.2 Render Particles
     for (const p of this.particles) {
       const alpha = 1.0 - p.life / p.maxLife;
       ctx.fillStyle = p.color;
@@ -486,8 +598,17 @@ export class Renderer {
     const cw = this.canvas.width;
     const ch = this.canvas.height;
 
-    // Pitch dark ambient underground
-    lCtx.fillStyle = 'rgba(5, 6, 9, 0.92)';
+    // Ambient darkness depends on world layer (biome):
+    let ambientStyle = 'rgba(5, 6, 9, 0.92)'; // Default underground darkness
+    if (player.tileY < 0) {
+      // Winter world: frosty daylight / pale cold twilight
+      const depthRatio = Math.min(1.0, Math.abs(player.tileY) / 10);
+      ambientStyle = `rgba(18, 28, 48, ${0.40 - depthRatio * 0.15})`; // bright, soft cold daylight!
+    } else if (player.tileY >= 80) {
+      // Sinister ruins: deep eerie purple-crimson abyss darkness
+      ambientStyle = 'rgba(15, 4, 18, 0.94)';
+    }
+    lCtx.fillStyle = ambientStyle;
     lCtx.fillRect(0, 0, cw, ch);
 
     lCtx.globalCompositeOperation = 'destination-out';
@@ -541,6 +662,16 @@ export class Renderer {
           lCtx.fillStyle = lGrad;
           lCtx.beginPath();
           lCtx.arc(ls.sx, ls.sy, lRad, 0, Math.PI * 2);
+          lCtx.fill();
+        } else if (world.getTile(tx, ty) === TileType.VOID_CRYSTAL) {
+          const ls = camera.worldToScreen((tx + 0.5) * TILE_SIZE, (ty + 0.5) * TILE_SIZE);
+          const vRad = 24 * camera.zoom;
+          const vGrad = lCtx.createRadialGradient(ls.sx, ls.sy, 2, ls.sx, ls.sy, vRad);
+          vGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+          vGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          lCtx.fillStyle = vGrad;
+          lCtx.beginPath();
+          lCtx.arc(ls.sx, ls.sy, vRad, 0, Math.PI * 2);
           lCtx.fill();
         }
       }

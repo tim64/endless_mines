@@ -1,5 +1,5 @@
 import { CHUNK_SIZE, TILE_DEFINITIONS, TILE_SIZE } from '../constants';
-import { TileType, TileDef, TileDrop, Torch, SavedChunkDelta } from '../types';
+import { TileType, TileDef, TileDrop, Torch, SavedChunkDelta, BiomeType } from '../types';
 import { Chunk } from './chunk';
 import { SimplexNoise } from '../utils/noise';
 import { tryStampRoom } from './rooms';
@@ -59,6 +59,12 @@ export class World {
     return chunk;
   }
 
+  public getBiome(wx: number, wy: number): BiomeType {
+    if (wy < 0) return 'winter';
+    if (wy >= 80) return 'ruins';
+    return 'mines';
+  }
+
   private generateChunk(cx: number, cy: number): Chunk {
     const chunk = new Chunk(cx, cy);
 
@@ -78,14 +84,125 @@ export class World {
           continue;
         }
 
+        const biome = this.getBiome(wx, wy);
+
         // Cave generation using noise
         const caveVal = this.noiseCave.noise2D(wx * 0.05, wy * 0.05);
         const caveWorm = Math.abs(this.noiseCave.noise2D(wx * 0.08, wy * 0.08));
 
+        // -------------------------------------------------------------
+        // СЛОЙ 1: ЗИМНИЙ МИР (ВЕРХ, wy < 0)
+        // -------------------------------------------------------------
+        if (biome === 'winter') {
+          // Open glacial caverns & crevasses
+          if (caveVal > 0.44 || caveWorm < 0.08) {
+            chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
+            if (dist > 5) {
+              const torchHash = Math.abs(Math.sin(wx * 17.13 + wy * 31.97) * 43758.5453);
+              if ((torchHash - Math.floor(torchHash)) < 0.015) {
+                chunk.addTorch(lx, ly, Math.random() * 100);
+              }
+            }
+            continue;
+          }
+
+          // Subterranean frozen aquifers
+          const waterNoise = this.noiseWater.noise2D(wx * 0.08, wy * 0.08);
+          if (waterNoise > 0.62 && caveVal < 0.32) {
+            chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.WATER;
+            chunk.setWaterLevel(lx, ly, 6);
+            continue;
+          }
+
+          // Base winter terrain
+          const terrainNoise = this.noiseTerrain.noise2D(wx * 0.04, wy * 0.04);
+          let baseTile: TileType = TileType.SNOW;
+
+          if (wy < -8) {
+            if (terrainNoise > 0.30) baseTile = TileType.PACKED_ICE;
+            else if (terrainNoise > -0.05) baseTile = TileType.ICE;
+            else if (terrainNoise > -0.35) baseTile = TileType.SNOW;
+            else baseTile = TileType.FROZEN_DIRT;
+          } else {
+            // Transition zone to mines (-8 <= wy < 0)
+            if (terrainNoise > 0.25) baseTile = TileType.ICE;
+            else if (terrainNoise > -0.15) baseTile = TileType.FROZEN_DIRT;
+            else baseTile = TileType.SNOW;
+          }
+
+          // Winter ore veins
+          const oreNoise = this.noiseOre.noise2D(wx * 0.12, wy * 0.12);
+          const rareOreNoise = this.noiseOre.noise2D(wx * 0.18 + 50, wy * 0.18 + 50);
+
+          let finalTile: TileType = baseTile;
+          if (rareOreNoise > 0.54) {
+            finalTile = TileType.SILVER;
+          } else if (oreNoise > 0.62) {
+            finalTile = TileType.COAL;
+          } else if (rareOreNoise < -0.70 && dist > 15) {
+            finalTile = TileType.GEM;
+          }
+
+          chunk.tiles[ly * CHUNK_SIZE + lx] = finalTile;
+          continue;
+        }
+
+        // -------------------------------------------------------------
+        // СЛОЙ 3: ЗЛОВЕЩИЕ РУИНЫ (НИЗ, wy >= 80)
+        // -------------------------------------------------------------
+        if (biome === 'ruins') {
+          // Ancient halls and catacomb corridors
+          if (caveVal > 0.42 || caveWorm < 0.09) {
+            chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
+            const torchHash = Math.abs(Math.sin(wx * 17.13 + wy * 31.97) * 43758.5453);
+            if ((torchHash - Math.floor(torchHash)) < 0.02) {
+              chunk.addTorch(lx, ly, Math.random() * 100);
+            }
+            continue;
+          }
+
+          // Deep magma rivers
+          const lavaNoise = this.noiseLava.noise2D(wx * 0.08, wy * 0.08);
+          if (lavaNoise > 0.54 && caveVal < 0.34) {
+            chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.LAVA;
+            chunk.setLavaLevel(lx, ly, 6);
+            continue;
+          }
+
+          // Base ruin architecture
+          const terrainNoise = this.noiseTerrain.noise2D(wx * 0.04, wy * 0.04);
+          let baseTile: TileType = TileType.RUIN_BRICK;
+
+          if (terrainNoise > 0.35) baseTile = TileType.CURSED_STONE;
+          else if (terrainNoise > -0.05) baseTile = TileType.RUIN_BRICK;
+          else if (terrainNoise > -0.35) baseTile = TileType.BONE_BLOCK;
+          else baseTile = TileType.OBSIDIAN;
+
+          // Relic and ore veins
+          const oreNoise = this.noiseOre.noise2D(wx * 0.12, wy * 0.12);
+          const rareOreNoise = this.noiseOre.noise2D(wx * 0.18 + 50, wy * 0.18 + 50);
+
+          let finalTile: TileType = baseTile;
+          if (rareOreNoise > 0.56) {
+            finalTile = TileType.VOID_CRYSTAL;
+          } else if (oreNoise > 0.50) {
+            finalTile = TileType.GOLD;
+          } else if (rareOreNoise < -0.65) {
+            finalTile = TileType.GEM;
+          } else if (oreNoise < -0.55) {
+            finalTile = TileType.SULFUR;
+          }
+
+          chunk.tiles[ly * CHUNK_SIZE + lx] = finalTile;
+          continue;
+        }
+
+        // -------------------------------------------------------------
+        // СЛОЙ 2: ТЕКУЩИЕ ШАХТЫ (СЕРЕДИНА, 0 <= wy < 80)
+        // -------------------------------------------------------------
         // Natural winding caves and caverns
         if (caveVal > 0.48 || caveWorm < 0.07) {
           chunk.tiles[ly * CHUNK_SIZE + lx] = TileType.AIR;
-          // Natural dungeon torches in abandoned cave pockets
           if (dist > 5) {
             const torchHash = Math.abs(Math.sin(wx * 17.13 + wy * 31.97) * 43758.5453);
             if ((torchHash - Math.floor(torchHash)) < 0.015) {
@@ -120,14 +237,19 @@ export class World {
         const terrainNoise = this.noiseTerrain.noise2D(wx * 0.04, wy * 0.04);
         let baseTile: TileType = TileType.DIRT;
 
-        if (dist < 15) {
+        if (wy >= 70) {
+          // Transition to ruins: hard stone mixed with obsidian and ruin brick
+          if (terrainNoise > 0.3) baseTile = TileType.HARD_STONE;
+          else if (terrainNoise > -0.1) baseTile = TileType.RUIN_BRICK;
+          else baseTile = TileType.OBSIDIAN;
+        } else if (dist < 15) {
           baseTile = terrainNoise > 0.3 ? TileType.STONE : TileType.DIRT;
         } else if (dist < 40) {
           if (terrainNoise > 0.4) baseTile = TileType.HARD_STONE;
           else if (terrainNoise > -0.2) baseTile = TileType.STONE;
           else baseTile = TileType.DIRT;
         } else {
-          // Deeper / further world
+          // Deeper world
           if (terrainNoise > 0.1) baseTile = TileType.HARD_STONE;
           else baseTile = TileType.STONE;
         }

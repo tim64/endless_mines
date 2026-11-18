@@ -349,7 +349,11 @@ function gameLoop(now: number) {
       // Digging Audio & Particles
       digSoundTimer += dt;
       if (digSoundTimer >= 0.16) {
-        audio.playDig();
+        if (tile === TileType.SNOW) {
+          audio.playSnowDig();
+        } else {
+          audio.playDig();
+        }
         digSoundTimer = 0;
       }
 
@@ -360,7 +364,13 @@ function gameLoop(now: number) {
 
       // Block Broken!
       if (res.broken) {
-        audio.playBreak();
+        if (tile === TileType.ICE || tile === TileType.PACKED_ICE) {
+          audio.playIceBreak();
+        } else if (tile === TileType.VOID_CRYSTAL || tile === TileType.RUIN_BRICK || tile === TileType.CURSED_STONE) {
+          audio.playRuinChime();
+        } else {
+          audio.playBreak();
+        }
         renderer.addParticle(targetPx, targetPy, def.color, 14, 70);
 
         for (const drop of res.drops) {
@@ -373,7 +383,7 @@ function gameLoop(now: number) {
             def.detailColor || '#88c0d0'
           );
         }
-        hud.update();
+        hud.update(world.getBiome(player.tileX, player.tileY));
       }
     }
   }
@@ -507,7 +517,7 @@ function gameLoop(now: number) {
   renderer.render(world, player, bombs, camera, activeTarget);
 
   // 12. Update HUD
-  hud.update();
+  hud.update(world.getBiome(player.tileX, player.tileY));
 
   requestAnimationFrame(gameLoop);
 }
